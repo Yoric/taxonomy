@@ -2,6 +2,7 @@
 //! Values manipulated by services
 //!
 use parse::*;
+use serialize::*;
 use util::*;
 
 use std::cmp::{ PartialOrd, Ordering };
@@ -127,7 +128,7 @@ impl Parser<Type> for Type {
     }
 }
 impl ToJSON for Type {
-    fn to_json(&self) -> JSON {
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
         use self::Type::*;
         let key = match *self {
             Unit => "Unit",
@@ -146,7 +147,7 @@ impl ToJSON for Type {
             ExtBool => "ExtBool",
             ExtNumeric => "ExtNumeric",
         };
-        JSON::String(key.to_owned())
+        key.to_json(parts)
     }
 }
 
@@ -189,11 +190,12 @@ pub enum OnOff {
     /// ```
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+    /// use foxbox_taxonomy::serialize::*;
     ///
     /// let parsed = OnOff::from_str("\"On\"").unwrap();
     /// assert_eq!(parsed, OnOff::On);
     ///
-    /// let serialized: JSON = OnOff::On.to_json();
+    /// let serialized: JSON = OnOff::On.to_json(&mut MultiPart::new());
     /// assert_eq!(serialized.as_string().unwrap(), "On");
     /// ```
     On,
@@ -205,11 +207,12 @@ pub enum OnOff {
     /// ```
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// let parsed = OnOff::from_str("\"On\"").unwrap();
     /// assert_eq!(parsed, OnOff::On);
     ///
-    /// let serialized: JSON = OnOff::On.to_json();
+    /// let serialized: JSON = OnOff::On.to_json(&mut MultiPart::new());
     /// assert_eq!(serialized.as_string().unwrap(), "On");
     /// ```
     Off,
@@ -239,10 +242,10 @@ impl Parser<OnOff> for OnOff {
 }
 
 impl ToJSON for OnOff {
-    fn to_json(&self) -> JSON {
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
         match *self {
-            OnOff::On => JSON::String("On".to_owned()),
-            OnOff::Off => JSON::String("Off".to_owned())
+            OnOff::On => "On".to_json(parts),
+            OnOff::Off => "Off".to_json(parts),
         }
     }
 }
@@ -320,11 +323,12 @@ pub enum OpenClosed {
     /// ```
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// let parsed = OpenClosed::from_str("\"Open\"").unwrap();
     /// assert_eq!(parsed, OpenClosed::Open);
     ///
-    /// let serialized: JSON = OpenClosed::Open.to_json();
+    /// let serialized: JSON = OpenClosed::Open.to_json(&mut MultiPart::new());
     /// assert_eq!(serialized.as_string().unwrap(), "Open");
     /// ```
     Open,
@@ -336,11 +340,12 @@ pub enum OpenClosed {
     /// ```
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// let parsed = OpenClosed::from_str("\"Closed\"").unwrap();
     /// assert_eq!(parsed, OpenClosed::Closed);
     ///
-    /// let serialized: JSON = OpenClosed::Closed.to_json();
+    /// let serialized: JSON = OpenClosed::Closed.to_json(&mut MultiPart::new());
     /// assert_eq!(serialized.as_string().unwrap(), "Closed");
     /// ```
     Closed,
@@ -370,10 +375,10 @@ impl Parser<OpenClosed> for OpenClosed {
 }
 
 impl ToJSON for OpenClosed {
-    fn to_json(&self) -> JSON {
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
         match *self {
-            OpenClosed::Open => JSON::String("Open".to_owned()),
-            OpenClosed::Closed => JSON::String("Closed".to_owned())
+            OpenClosed::Open => "Open".to_json(parts),
+            OpenClosed::Closed => "Closed".to_json(parts)
         }
     }
 }
@@ -584,6 +589,7 @@ pub enum Temperature {
     /// ```
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// let source = "{
     ///   \"F\": 100
@@ -595,7 +601,7 @@ pub enum Temperature {
     ///    panic!()
     /// }
     ///
-    /// let serialized : JSON = parsed.to_json();
+    /// let serialized : JSON = parsed.to_json(&mut MultiPart::new());
     /// let val = serialized.find("F").unwrap().as_f64().unwrap();
     /// assert_eq!(val, 100.)
     /// ```
@@ -608,6 +614,7 @@ pub enum Temperature {
     /// ```
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// let source = "{
     ///   \"C\": 100
@@ -619,7 +626,7 @@ pub enum Temperature {
     ///    panic!()
     /// }
     ///
-    /// let serialized : JSON = parsed.to_json();
+    /// let serialized : JSON = parsed.to_json(&mut MultiPart::new());
     /// let val = serialized.find("C").unwrap().as_f64().unwrap();
     /// assert_eq!(val, 100.)
     /// ```
@@ -656,15 +663,16 @@ impl Parser<Temperature> for Temperature {
     }
 }
 impl ToJSON for Temperature {
-    fn to_json(&self) -> JSON {
-        match *self {
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
+        let obj = match *self {
             Temperature::C(val) => {
-                JSON::Object(vec![("C".to_owned(), JSON::F64(val))].iter().cloned().collect())
+                ("C", val.to_json(parts))
             }
             Temperature::F(val) => {
-                JSON::Object(vec![("F".to_owned(), JSON::F64(val))].iter().cloned().collect())
+                ("F", val.to_json(parts))
             }
-        }
+        };
+        vec![obj].to_json(parts)
     }
 }
 impl PartialOrd for Temperature {
@@ -811,11 +819,11 @@ impl Parser<ThinkerbellRule> for ThinkerbellRule {
     }
 }
 impl ToJSON for ThinkerbellRule {
-    fn to_json(&self) -> JSON {
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
         vec![
             ("name", &self.name),
             ("source", &self.source),
-        ].to_json()
+        ].to_json(parts)
     }
 }
 
@@ -835,7 +843,7 @@ impl Parser<Json> for Json {
     }
 }
 impl ToJSON for Json {
-    fn to_json(&self) -> JSON {
+    fn to_json(&self, _: &mut BinaryParts) -> JSON {
         self.0.clone()
     }
 }
@@ -892,17 +900,13 @@ impl<T> Parser<ExtValue<T>> for ExtValue<T>
 impl<T> ToJSON for ExtValue<T>
     where T: Debug + Clone + PartialEq + PartialOrd + Serialize + Deserialize + ToJSON
 {
-    fn to_json(&self) -> JSON {
-        let mut source = vec![
-            ("value", self.value.to_json()),
-            ("vendor", JSON::String(self.vendor.to_string())),
-            ("adapter", JSON::String(self.adapter.to_string())),
-            ("kind", JSON::String(self.kind.to_string())),
-        ];
-        let map = source.drain(..)
-            .map(|(key, value)| (key.to_owned(), value))
-            .collect();
-        JSON::Object(map)
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
+        vec![
+            ("value", self.value.to_json(parts)),
+            ("vendor", self.vendor.to_json(parts)),
+            ("adapter", self.adapter.to_json(parts)),
+            ("kind", self.kind.to_json(parts))
+        ].to_json(parts)
     }
 }
 
@@ -957,15 +961,8 @@ impl Parser<Binary> for Binary {
 }
 
 impl ToJSON for Binary {
-    fn to_json(&self) -> JSON {
-        let mut source = vec![
-            ("data", JSON::Array(self.data.iter().map(|x| JSON::U64(*x as u64)).collect())),
-            ("mimetype", JSON::String(self.mimetype.to_string()))
-        ];
-        let map = source.drain(..)
-            .map(|(key, value)| (key.to_owned(), value))
-            .collect();
-        JSON::Object(map)
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
+        parts.push(self.mimetype.clone(), &*self.data)
     }
 }
 
@@ -1025,6 +1022,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// # fn main() {
     ///
@@ -1040,7 +1038,7 @@ pub enum Value {
     /// }
     ///
     ///
-    /// let serialized: JSON = parsed.to_json();
+    /// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
     /// if let JSON::Object(ref obj) = serialized {
     ///   let serialized = obj.get("Unit").unwrap();
     ///   assert!(serialized.is_null());
@@ -1060,6 +1058,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// # fn main() {
     ///
@@ -1075,7 +1074,7 @@ pub enum Value {
     /// }
     ///
     ///
-    /// let serialized: JSON = parsed.to_json();
+    /// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
     /// if let JSON::Object(ref obj) = serialized {
     ///   let serialized = obj.get("OnOff").unwrap();
     ///   assert_eq!(serialized.as_string().unwrap(), "On");
@@ -1095,6 +1094,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// # fn main() {
     ///
@@ -1110,7 +1110,7 @@ pub enum Value {
     /// }
     ///
     ///
-    /// let serialized: JSON = parsed.to_json();
+    /// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
     /// if let JSON::Object(ref obj) = serialized {
     ///   let serialized = obj.get("OpenClosed").unwrap();
     ///   assert_eq!(serialized.as_string().unwrap(), "Open");
@@ -1167,6 +1167,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     /// use chrono::Datelike;
     ///
     /// # fn main() {
@@ -1186,7 +1187,7 @@ pub enum Value {
     /// }
     ///
     ///
-    /// let serialized: JSON = parsed.to_json();
+    /// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
     /// if let JSON::Object(ref obj) = serialized {
     ///   let serialized = obj.get("TimeStamp").unwrap();
     ///   assert!(serialized.as_string().unwrap().starts_with("2014-11-28"));
@@ -1211,6 +1212,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     /// use chrono::Duration as ChronoDuration;
     ///
     /// # fn main() {
@@ -1225,7 +1227,7 @@ pub enum Value {
     /// }
     ///
     ///
-    /// let serialized: JSON = parsed.to_json();
+    /// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
     /// if let JSON::Object(ref obj) = serialized {
     ///   let serialized = obj.get("Duration").unwrap();
     ///   assert!(serialized.as_f64().unwrap() >= 60. && serialized.as_f64().unwrap() < 61.);
@@ -1248,6 +1250,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// # fn main() {
     ///
@@ -1264,7 +1267,7 @@ pub enum Value {
     /// }
     ///
     ///
-    /// let serialized: JSON = parsed.to_json();
+    /// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
     /// let val = serialized.find_path(&["Temperature", "C"]).unwrap().as_f64().unwrap();
     /// assert_eq!(val, 2.0);
     /// # }
@@ -1283,6 +1286,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// # fn main() {
     ///
@@ -1320,6 +1324,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// # fn main() {
     ///
@@ -1334,7 +1339,7 @@ pub enum Value {
     /// }
     ///
     ///
-    /// let serialized: JSON = parsed.to_json();
+    /// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
     /// let val = serialized.find_path(&["String"]).unwrap().as_string().unwrap();
     /// assert_eq!(&val as &str, "foobar");
     /// # }
@@ -1367,6 +1372,7 @@ pub enum Value {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// # fn main() {
     ///
@@ -1381,7 +1387,7 @@ pub enum Value {
     /// }
     ///
     ///
-    /// let serialized: JSON = parsed.to_json();
+    /// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
     /// let val = serialized.find_path(&["Json", "foo"]).unwrap().as_string().unwrap();
     /// assert_eq!(val, "bar");
     /// # }
@@ -1392,35 +1398,8 @@ pub enum Value {
     ///
     /// # JSON
     ///
-    /// Represented by `{Binary: {data: array, mimetype: string}}`.
-    ///
-    /// **This representation is likely to change in the future.**
-    ///
-    /// ```
-    /// extern crate foxbox_taxonomy;
-    /// extern crate chrono;
-    ///
-    /// use foxbox_taxonomy::values::*;
-    /// use foxbox_taxonomy::parse::*;
-    ///
-    /// # fn main() {
-    ///
-    /// let source = "{
-    ///   \"Binary\": { \"data\": [0, 1, 2], \"mimetype\": \"binary/raw\" }
-    /// }";
-    /// let parsed = Value::from_str(source).unwrap();
-    /// if let Value::Binary(ref obj) = parsed {
-    ///   assert_eq!(obj.mimetype.to_string(), "binary/raw".to_owned());
-    ///   assert_eq!(*obj.data, vec![0, 1, 2]);
-    /// } else {
-    ///   panic!();
-    /// }
-    ///
-    ///
-    /// let serialized: JSON = parsed.to_json();
-    /// let val = serialized.find_path(&["Binary", "mimetype"]).unwrap().as_string().unwrap();
-    /// assert_eq!(val, "binary/raw");
-    /// # }
+    /// Represented by `{Binary: {part: number}}`, where `number` represents
+    /// the number of the multipart containing the binary payload.
     /// ```
     Binary(Binary),
 }
@@ -1520,9 +1499,9 @@ impl Parser<Value> for Value {
 }
 
 impl ToJSON for Value {
-    fn to_json(&self) -> JSON {
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
         use self::Value::*;
-        let (key, value) = match *self {
+        let obj = match *self {
             Unit => ("Unit", JSON::Null),
             OnOff(ref val) => ("OnOff", val.to_json()),
             OpenClosed(ref val) => ("OpenClosed", val.to_json()),
@@ -1651,6 +1630,7 @@ impl PartialOrd for Value {
 ///
 /// use foxbox_taxonomy::values::*;
 /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
 /// use chrono::Datelike;
 ///
 /// # fn main() {
@@ -1662,7 +1642,7 @@ impl PartialOrd for Value {
 /// assert_eq!(date_time.day(), 28);
 ///
 ///
-/// let serialized: JSON = parsed.to_json();
+/// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
 /// assert!(serialized.as_string().unwrap().starts_with("2014-11-28"));
 ///
 /// # }
@@ -1697,8 +1677,8 @@ impl Parser<TimeStamp> for TimeStamp {
     }
 }
 impl ToJSON for TimeStamp {
-    fn to_json(&self) -> JSON {
-        JSON::String(self.0.to_rfc3339())
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
+        self.0.to_rfc3339().to_json(parts)
     }
 }
 impl Into<DateTime<UTC>> for TimeStamp  {
@@ -1753,6 +1733,7 @@ pub enum Range {
     ///
     /// use foxbox_taxonomy::values::*;
     /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
     ///
     /// # fn main() {
     ///
@@ -1767,7 +1748,7 @@ pub enum Range {
     ///   panic!();
     /// }
     ///
-    /// let as_json = parsed.to_json();
+    /// let as_json = parsed.to_json(&mut MultiPart::new());
     /// let as_string = serde_json::to_string(&as_json).unwrap();
     /// assert_eq!(as_string, "{\"Leq\":{\"OnOff\":\"On\"}}");
     ///
@@ -1841,15 +1822,15 @@ impl Parser<Range> for Range {
 }
 
 impl ToJSON for Range {
-    fn to_json(&self) -> JSON {
-        let (key, value) = match *self {
-            Range::Eq(ref val) => ("Eq", val.to_json()),
-            Range::Geq(ref val) => ("Geq", val.to_json()),
-            Range::Leq(ref val) => ("Leq", val.to_json()),
-            Range::BetweenEq { ref min, ref max } => ("BetweenEq", JSON::Array(vec![min.to_json(), max.to_json()])),
-            Range::OutOfStrict { ref min, ref max } => ("OutOfStrict", JSON::Array(vec![min.to_json(), max.to_json()])),
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
+        let obj = match *self {
+            Range::Eq(ref val) => ("Eq", val.to_json(parts)),
+            Range::Geq(ref val) => ("Geq", val.to_json(parts)),
+            Range::Leq(ref val) => ("Leq", val.to_json(parts)),
+            Range::BetweenEq { ref min, ref max } => ("BetweenEq", JSON::Array(vec![min.to_json(parts), max.to_json(parts)])),
+            Range::OutOfStrict { ref min, ref max } => ("OutOfStrict", JSON::Array(vec![min.to_json(parts), max.to_json(parts)])),
         };
-        vec![(key, value)].to_json()
+        vec![obj].to_json(parts)
     }
 }
 
@@ -1903,6 +1884,7 @@ impl Range {
 ///
 /// use foxbox_taxonomy::values::*;
 /// use foxbox_taxonomy::parse::*;
+	/// use foxbox_taxonomy::serialize::*;
 /// use chrono::Duration as ChronoDuration;
 ///
 /// # fn main() {
@@ -1913,7 +1895,7 @@ impl Range {
 /// assert_eq!(duration.num_milliseconds(), 60010);
 ///
 ///
-/// let serialized: JSON = parsed.to_json();
+/// let serialized: JSON = parsed.to_json(&mut MultiPart::new());
 /// assert_eq!(serialized.as_f64().unwrap(), 60.01);
 ///
 /// # }
@@ -1932,9 +1914,9 @@ impl Parser<Duration> for Duration {
 }
 
 impl ToJSON for Duration {
-    fn to_json(&self) -> JSON {
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
         let val = self.0.num_milliseconds() as f64 / 1000 as f64;
-        JSON::F64(val)
+        val.to_json(parts)
     }
 }
 
