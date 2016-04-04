@@ -1327,6 +1327,7 @@ impl State {
     }
 }
 
+
 impl State {
     // Clear all state, removing any remaining cycle or lingering thread.
     pub fn stop(&mut self) {

@@ -233,9 +233,7 @@ fn test_tags_in_db() {
 #[test]
 fn test_add_remove_adapter() {
     for clear in vec![false, true] {
-		println!("# Starting with test with clear {}.\n", clear);
-
-        let manager = AdapterManager::new(None);
+        let manager = AdapterManager::new();
         let id_1 = Id::new("id 1");
         let id_2 = Id::new("id 2");
 
@@ -270,10 +268,10 @@ fn test_add_remove_adapter() {
         }
 
         if clear {
-            println!("* Clearing does not break the manager.\n");
+            println!("* Clearing does not need break the manager.");
             manager.stop();
         } else {
-            println!("* Not clearing does not break the manager.\n");
+            println!("* Not clearing does not need break the manager.");
         }
     }
 }
@@ -282,9 +280,7 @@ fn test_add_remove_adapter() {
 fn test_add_remove_services() {
     println!("");
     for clear in vec![false, true] {
-		println!("# Starting with test with clear {}.", clear);
-
-        let manager = AdapterManager::new(None);
+        let manager = AdapterManager::new();
         let id_1 = Id::<AdapterId>::new("adapter id 1");
         let id_2 = Id::<AdapterId>::new("adapter id 2");
         let id_3 = Id::<AdapterId>::new("adapter id 3");
@@ -310,7 +306,7 @@ fn test_add_remove_services() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -322,7 +318,7 @@ fn test_add_remove_services() {
             tags: HashSet::new(),
             mechanism: Setter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -334,7 +330,7 @@ fn test_add_remove_services() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -346,7 +342,7 @@ fn test_add_remove_services() {
             tags: HashSet::new(),
             mechanism: Setter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -377,7 +373,7 @@ fn test_add_remove_services() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -389,7 +385,7 @@ fn test_add_remove_services() {
             tags: HashSet::new(),
             mechanism: Setter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -491,8 +487,8 @@ fn test_add_remove_services() {
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_id(setter_id_1.clone())]).len(), 0);
         assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_parent(service_id_1.clone())]).len(), 1);
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_parent(service_id_1.clone())]).len(), 0);
-        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 1);
-        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 0);
+        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 1);
+        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 0);
 
         println!("* Adding setter channels can succeed.");
         manager.add_setter(setter_1.clone()).unwrap();
@@ -502,8 +498,8 @@ fn test_add_remove_services() {
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_id(setter_id_1.clone())]).len(), 1);
         assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_parent(service_id_1.clone())]).len(), 1);
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_parent(service_id_1.clone())]).len(), 1);
-        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 1);
-        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 1);
+        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 1);
+        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 1);
 
         println!("* Removing getter channels can succeed.");
         manager.remove_getter(&getter_id_1).unwrap();
@@ -513,8 +509,8 @@ fn test_add_remove_services() {
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_id(setter_id_1.clone())]).len(), 1);
         assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_parent(service_id_1.clone())]).len(), 0);
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_parent(service_id_1.clone())]).len(), 1);
-        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 0);
-        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 1);
+        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 0);
+        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 1);
 
         println!("* Removing setter channels can succeed.");
         manager.remove_setter(&setter_id_1).unwrap();
@@ -524,8 +520,8 @@ fn test_add_remove_services() {
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_id(setter_id_1.clone())]).len(), 0);
         assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_parent(service_id_1.clone())]).len(), 0);
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_parent(service_id_1.clone())]).len(), 0);
-        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 0);
-        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 0);
+        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 0);
+        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 0);
 
         println!("* We can remove a service without channels.");
         manager.remove_service(&service_id_1).unwrap();
@@ -555,8 +551,8 @@ fn test_add_remove_services() {
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_parent(service_id_2.clone())]).len(), 1);
         assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_parent(service_id_3.clone())]).len(), 0);
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_parent(service_id_3.clone())]).len(), 0);
-        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 2);
-        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 2);
+        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 2);
+        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 2);
 
         println!("* We can remove a service with channels.");
         manager.remove_service(&service_id_1).unwrap();
@@ -572,8 +568,8 @@ fn test_add_remove_services() {
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_id(setter_id_1.clone())]).len(), 0);
         assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_parent(service_id_1.clone())]).len(), 0);
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_parent(service_id_1.clone())]).len(), 0);
-        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 1);
-        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::LightOn)]).len(), 1);
+        assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 1);
+        assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_kind(ChannelKind::OnOff)]).len(), 1);
 
         println!("* Removing a service with channels doesn't remove other channels.");
         assert_eq!(manager.get_getter_channels(vec![GetterSelector::new().with_id(getter_id_2.clone())]).len(), 1);
@@ -584,12 +580,10 @@ fn test_add_remove_services() {
         assert_eq!(manager.get_setter_channels(vec![SetterSelector::new().with_parent(service_id_3.clone())]).len(), 0);
 
         if clear {
-            println!("* Clearing does not break the manager.
-");
+            println!("* Clearing does not need break the manager.");
             manager.stop();
         } else {
-            println!("* Not clearing does not break the manager.
-");
+            println!("* Not clearing does not need break the manager.");
         }
     }
 }
@@ -598,10 +592,7 @@ fn test_add_remove_services() {
 fn test_add_remove_tags() {
     println!("");
     for clear in vec![false, true] {
-		println!("# Starting with test with clear {}.
-", clear);
-
-        let manager = AdapterManager::new(None);
+        let manager = AdapterManager::new();
         let id_1 = Id::<AdapterId>::new("adapter id 1");
         let id_2 = Id::<AdapterId>::new("adapter id 2");
 
@@ -622,7 +613,7 @@ fn test_add_remove_tags() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -634,7 +625,7 @@ fn test_add_remove_tags() {
             tags: HashSet::new(),
             mechanism: Setter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -655,7 +646,7 @@ fn test_add_remove_tags() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -667,7 +658,7 @@ fn test_add_remove_tags() {
             tags: HashSet::new(),
             mechanism: Setter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -943,12 +934,10 @@ fn test_add_remove_tags() {
         assert_eq!(selection.len(), 0);
 
         if clear {
-            println!("* Clearing does not break the manager.
-");
+            println!("* Clearing does not need break the manager.");
             manager.stop();
         } else {
-            println!("* Not clearing does not break the manager.
-");
+            println!("* Not clearing does not need break the manager.");
         }
     }
 
@@ -960,10 +949,7 @@ fn test_fetch() {
     println!("");
 
     for clear in vec![false, true] {
-		println!("# Starting with test with clear {}.
-", clear);
-
-        let manager = AdapterManager::new(None);
+        let manager = AdapterManager::new();
         let id_1 = Id::<AdapterId>::new("adapter id 1");
         let id_2 = Id::<AdapterId>::new("adapter id 2");
 
@@ -984,7 +970,7 @@ fn test_fetch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -996,7 +982,7 @@ fn test_fetch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -1008,7 +994,7 @@ fn test_fetch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -1020,7 +1006,7 @@ fn test_fetch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -1139,12 +1125,10 @@ fn test_fetch() {
         }
 
         if clear {
-            println!("* Clearing does not break the manager.
-");
+            println!("* Clearing does not need break the manager.");
             manager.stop();
         } else {
-            println!("* Not clearing does not break the manager.
-");
+            println!("* Not clearing does not need break the manager.");
         }
     }
 
@@ -1158,10 +1142,7 @@ fn test_send() {
     println!("");
 
     for clear in vec![false, true] {
-		println!("# Starting with test with clear {}.
-", clear);
-
-        let manager = AdapterManager::new(None);
+        let manager = AdapterManager::new();
         let id_1 = Id::<AdapterId>::new("adapter id 1");
         let id_2 = Id::<AdapterId>::new("adapter id 2");
 
@@ -1180,7 +1161,7 @@ fn test_send() {
             last_seen: None,
             tags: HashSet::new(),
             mechanism: Setter {
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
                 updated: None,
             },
         };
@@ -1192,7 +1173,7 @@ fn test_send() {
             last_seen: None,
             tags: HashSet::new(),
             mechanism: Setter {
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
                 updated: None,
             },
         };
@@ -1204,7 +1185,7 @@ fn test_send() {
             last_seen: None,
             tags: HashSet::new(),
             mechanism: Setter {
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
                 updated: None,
             },
         };
@@ -1216,7 +1197,7 @@ fn test_send() {
             last_seen: None,
             tags: HashSet::new(),
             mechanism: Setter {
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
                 updated: None,
             },
         };
@@ -1290,8 +1271,8 @@ fn test_send() {
         }
 
         println!("* No further value should have been received.");
-        assert_matches!(rx_adapter_1.try_recv(), Err(_));
-        assert_matches!(rx_adapter_2.try_recv(), Err(_));
+        assert!(rx_adapter_1.try_recv().is_err());
+        assert!(rx_adapter_2.try_recv().is_err());
 
         println!("* Sending ill-typed values to channels will cause type errors.");
         let data = manager.send_values(target_map(vec![
@@ -1326,8 +1307,8 @@ fn test_send() {
         }
 
         println!("* No further value should have been received.");
-        assert_matches!(rx_adapter_1.try_recv(), Err(_));
-        assert_matches!(rx_adapter_2.try_recv(), Err(_));
+        assert!(rx_adapter_1.try_recv().is_err());
+        assert!(rx_adapter_2.try_recv().is_err());
 
         println!("* Sending values that cause channel errors will propagate the errors.");
         tweak_1(Tweak::InjectSetterError(setter_id_1_1.clone(), Some(Error::InternalError(InternalError::InvalidInitialService))));
@@ -1361,17 +1342,15 @@ fn test_send() {
         }
 
         println!("* No further value should have been received.");
-        assert_matches!(rx_adapter_1.try_recv(), Err(_));
-        assert_matches!(rx_adapter_2.try_recv(), Err(_));
+        assert!(rx_adapter_1.try_recv().is_err());
+        assert!(rx_adapter_2.try_recv().is_err());
         tweak_1(Tweak::InjectSetterError(setter_id_1_1.clone(), None));
 
         if clear {
-            println!("* Clearing does not break the manager.
-");
+            println!("* Clearing does not need break the manager.");
             manager.stop();
         } else {
-            println!("* Not clearing does not break the manager.
-");
+            println!("* Not clearing does not need break the manager.");
         }
     }
 
@@ -1384,10 +1363,7 @@ fn test_watch() {
     println!("");
 
     for clear in vec![false, true] {
-		println!("# Starting with test with clear {}.
-", clear);
-
-        let manager = AdapterManager::new(None);
+        let manager = AdapterManager::new();
         let id_1 = Id::<AdapterId>::new("adapter id 1");
         let id_2 = Id::<AdapterId>::new("adapter id 2");
 
@@ -1409,7 +1385,7 @@ fn test_watch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -1421,7 +1397,7 @@ fn test_watch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -1433,7 +1409,7 @@ fn test_watch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -1445,7 +1421,7 @@ fn test_watch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -1457,7 +1433,7 @@ fn test_watch() {
             tags: HashSet::new(),
             mechanism: Getter {
                 updated: None,
-                kind: ChannelKind::LightOn,
+                kind: ChannelKind::OnOff,
             },
         };
 
@@ -1537,7 +1513,7 @@ fn test_watch() {
 
         assert_eq!(events.len(), 4);
 
-        assert_matches!(rx_watch.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
 
         println!("* We can observe channels being removed.");
 
@@ -1546,7 +1522,7 @@ fn test_watch() {
             Event::GetterRemoved(ref id) if *id == getter_id_1_2 => {}
             other => panic!("Unexpected event {:?}", other)
         }
-        assert_matches!(rx_watch.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
 
         println!("* We can observe value changes.");
         tweak_1(Tweak::InjectGetterValue(getter_id_1_1.clone(), Ok(Some(Value::OnOff(OnOff::On)))));
@@ -1565,7 +1541,7 @@ fn test_watch() {
         assert_eq!(events.get(&getter_id_1_3).unwrap(), &Value::OnOff(OnOff::Off));
 
         println!("* We only observe channels that still exist.");
-        assert_matches!(rx_watch.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
 
         println!("* We can have several watchers at once");
         assert_eq!(manager.add_getter_tags(vec![
@@ -1602,8 +1578,8 @@ fn test_watch() {
             other => panic!("Unexpected event {:?}", other)
         }
         assert_eq!(events.len(), 3);
-        assert_matches!(rx_watch.try_recv(), Err(_));
-        assert_matches!(rx_watch_2.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
+        assert!(rx_watch_2.try_recv().is_err());
 
         println!("* Watchers with ranges emit both EnterRange and ExitRange");
 
@@ -1616,13 +1592,13 @@ fn test_watch() {
             Event::EnterRange { ref from, .. } if *from == getter_id_2 => { }
             other => panic!("Unexpected event {:?}", other)
         }
-        assert_matches!(rx_watch.try_recv(), Err(_));
-        assert_matches!(rx_watch_2.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
+        assert!(rx_watch_2.try_recv().is_err());
 
 
         println!("* We stop receiving value change notifications once we have dropped the guard.");
         drop(guard);
-        assert_matches!(rx_watch.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
 
         tweak_1(Tweak::InjectGetterValue(getter_id_1_1.clone(), Ok(Some(Value::OnOff(OnOff::On)))));
         tweak_1(Tweak::InjectGetterValue(getter_id_1_2.clone(), Ok(Some(Value::OnOff(OnOff::On)))));
@@ -1639,16 +1615,16 @@ fn test_watch() {
         assert!(events.contains(&getter_id_1_3));
         assert!(events.contains(&getter_id_2));
 
-        assert_matches!(rx_watch_2.try_recv(), Err(_));
-        assert_matches!(rx_watch.try_recv(), Err(_));
+        assert!(rx_watch_2.try_recv().is_err());
+        assert!(rx_watch.try_recv().is_err());
 
         println!("* We stop receiving connection notifications once we have dropped the guard.");
         manager.add_getter(getter_1_4.clone()).unwrap();
-        assert_matches!(rx_watch.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
 
         println!("* We stop receiving disconnection notifications once we have dropped the guard.");
         manager.remove_getter(&getter_id_1_4).unwrap();
-        assert_matches!(rx_watch.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
 
         println!("* We are notified when a getter is added to a watch by changing a tag.");
 
@@ -1660,7 +1636,7 @@ fn test_watch() {
             Event::GetterAdded(ref id) if *id == getter_id_1_1 => { }
             other => panic!("Unexpected event {:?}", other)
         }
-        assert_matches!(rx_watch_2.try_recv(), Err(_));
+        assert!(rx_watch_2.try_recv().is_err());
 
 
         println!("* We are notified when a getter is removed from a watch by changing a tag.");
@@ -1672,20 +1648,18 @@ fn test_watch() {
             Event::GetterRemoved(ref id) if *id == getter_id_1_1 => { }
             other => panic!("Unexpected event {:?}", other)
         }
-        assert_matches!(rx_watch_2.try_recv(), Err(_));
+        assert!(rx_watch_2.try_recv().is_err());
 
         println!("* Make sure that we havne't forgotten to eat a message.");
         thread::sleep(std::time::Duration::new(1, 0));
-        assert_matches!(rx_watch.try_recv(), Err(_));
-        assert_matches!(rx_watch_2.try_recv(), Err(_));
+        assert!(rx_watch.try_recv().is_err());
+        assert!(rx_watch_2.try_recv().is_err());
 
         if clear {
-            println!("* Clearing does not break the manager.
-");
+            println!("* Clearing does not need break the manager.");
             manager.stop();
         } else {
-            println!("* Not clearing does not break the manager.
-");
+            println!("* Not clearing does not need break the manager.");
         }
     }
 
