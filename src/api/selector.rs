@@ -4,63 +4,19 @@
 //! services/channels. This allows operations such as sending a temperature to all heaters in the
 //! living room (that's a selector), rather than needing to access every single heater one by one.
 
-pub use parse::*;
-use services::{ Service, ChannelKind, Channel, Getter, Setter };
-use util::*;
-use values::Duration;
+use api::services::*;
+use io::parse::*;
+use misc::util::ptr_eq;
 
-use std::cmp;
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::collections::HashSet;
 
-fn merge<T>(mut a: HashSet<T>, b: Vec<T>) -> HashSet<T> where T: Hash + Eq {
-    for x in b {
-        a.insert(x);
-    }
+use serde::de::Deserialize;
+
+fn merge<T>(mut a: HashSet<T>, b: &[T]) -> HashSet<T> where T: Hash + Eq + Clone {
+    a.extend(b.iter().cloned());
     a
-}
-
-pub trait SelectedBy<T> {
-    fn matches(&self, &T) -> bool;
-}
-
-/// A trait used to let `ServiceSelector` work on complex data structures
-/// that are not necessarily exactly Selector.
-pub trait ServiceLike {
-    fn id(&self) -> &Id<ServiceId>;
-    fn adapter(&self) -> &Id<AdapterId>;
-    fn with_tags<F>(&self, f: F) -> bool where F: Fn(&HashSet<Id<TagId>>) -> bool;
-    fn has_getters<F>(&self, f: F) -> bool where F: Fn(&Channel<Getter>) -> bool;
-    fn has_setters<F>(&self, f: F) -> bool where F: Fn(&Channel<Setter>) -> bool;
-}
-
-impl ServiceLike for Service {
-    fn id(&self) -> &Id<ServiceId> {
-        &self.id
-    }
-    fn adapter(&self) -> &Id<AdapterId> {
-        &self.adapter
-    }
-    fn with_tags<F>(&self, f: F) -> bool where F: Fn(&HashSet<Id<TagId>>) -> bool {
-        f(&self.tags)
-    }
-    fn has_getters<F>(&self, f: F) -> bool where F: Fn(&Channel<Getter>) -> bool {
-        for chan in self.getters.values() {
-            if f(chan) {
-                return true;
-            }
-        }
-        false
-    }
-    fn has_setters<F>(&self, f: F) -> bool where F: Fn(&Channel<Setter>) -> bool {
-        for chan in self.setters.values() {
-            if f(chan) {
-                return true;
-            }
-        }
-        false
-    }
-
 }
 
 /// A selector for one or more services.
@@ -123,64 +79,45 @@ pub struct ServiceSelector {
     pub tags: HashSet<Id<TagId>>,
 
     /// Restrict results to services that have all the getters in `getters`.
-    pub getters: Vec<GetterSelector>,
-
-    /// Restrict results to services that have all the setters in `setters`.
-    pub setters: Vec<SetterSelector>,
+    pub features: Vec<SimpleFeatureSelector>,
 
     /// Make sure that we can't instantiate from another crate.
     private: (),
+}
+
+impl PartialEq for ServiceSelector {
+    fn eq(&self, other: &Self) -> bool {
+        // We always expect two ServiceSelectors to be distinct
+        ptr_eq(self, other)
+    }
 }
 
 impl Parser<ServiceSelector> for ServiceSelector {
     fn description() -> String {
         "ServiceSelector".to_owned()
     }
-    fn parse(path: Path, source: &mut JSON) -> Result<Self, ParseError> {
-        let mut is_empty = true;
-        let id = try!(match path.push("id", |path| Exactly::take_opt(path, source, "id")) {
+    fn parse(path: Path, source: &JSON, support: &DeserializeSupport) -> Result<Self, ParseError> {
+        let id = try!(match path.push("id", |path| Exactly::take_opt(path, source, "id", support)) {
             None => Ok(Exactly::Always),
-            Some(result) => {
-                is_empty = false;
-                result
-            }
+            Some(result) => result
         });
-        let tags : HashSet<_> = match path.push("tags", |path| Id::take_vec_opt(path, source, "tags")) {
+        let tags : HashSet<_> = match path.push("tags", |path| Id::take_vec_opt(path, source, "tags", support)) {
             None => HashSet::new(),
-            Some(Ok(mut vec)) => {
-                is_empty = false;
-                vec.drain(..).collect()
-            }
+            Some(Ok(mut vec)) => vec.drain(..).collect(),
             Some(Err(err)) => return Err(err),
         };
-        let getters = match path.push("getters", |path| GetterSelector::take_vec_opt(path, source, "getters")) {
+        let features = match path.push("features", |path| SimpleFeatureSelector::take_vec_opt(path, source, "features", support)) {
             None => vec![],
-            Some(Ok(vec)) => {
-                is_empty = false;
-                vec
-            }
-            Some(Err(err)) => return Err(err)
-        };
-        let setters = match path.push("setters", |path| SetterSelector::take_vec_opt(path, source, "setters")) {
-            None => vec![],
-            Some(Ok(vec)) => {
-                is_empty = false;
-                vec
-            }
+            Some(Ok(vec)) => vec,
             Some(Err(err)) => return Err(err)
         };
 
-        if is_empty {
-            Err(ParseError::empty_object(&path))
-        } else {
-            Ok(ServiceSelector {
-                id: id,
-                tags: tags,
-                getters: getters,
-                setters: setters,
-                private: ()
-            })
-        }
+        Ok(ServiceSelector {
+            id: id,
+            tags: tags,
+            features: features,
+            private: ()
+        })
     }
 }
 
@@ -199,7 +136,7 @@ impl ServiceSelector {
     }
 
     ///  Restrict results to services that have all the tags in `tags`.
-    pub fn with_tags(self, tags: Vec<Id<TagId>>) -> Self {
+    pub fn with_tags(self, tags: &[Id<TagId>]) -> Self {
         ServiceSelector {
             tags: merge(self.tags, tags),
             .. self
@@ -207,17 +144,9 @@ impl ServiceSelector {
     }
 
     /// Restrict results to services that have all the getters in `getters`.
-    pub fn with_getters(mut self, mut getters: Vec<GetterSelector>) -> Self {
+    pub fn with_features(mut self, features: &[SimpleFeatureSelector]) -> Self {
         ServiceSelector {
-            getters: {self.getters.append(&mut getters); self.getters},
-            .. self
-        }
-    }
-
-    /// Restrict results to services that have all the setters in `setters`.
-    pub fn with_setters(mut self, mut setters: Vec<SetterSelector>) -> Self {
-        ServiceSelector {
-            setters: {self.setters.append(&mut setters); self.setters},
+            features: {self.features.extend_from_slice(features); self.features},
             .. self
         }
     }
@@ -227,50 +156,12 @@ impl ServiceSelector {
         ServiceSelector {
             id: self.id.and(other.id),
             tags: self.tags.union(&other.tags).cloned().collect(),
-            getters: {self.getters.append(&mut other.getters); self.getters},
-            setters: {self.setters.append(&mut other.setters); self.setters},
+            features: {self.features.append(&mut other.features); self.features},
             private: (),
         }
     }
-
-    pub fn matches<T>(&self, service: &T) -> bool
-        where T: ServiceLike
-    {
-        if !self.id.matches(service.id()) {
-            return false;
-        }
-        if !service.with_tags(|tags| has_selected_tags(&self.tags, tags)) {
-            return false;
-        }
-        // If any of the getter selectors doesn't find a getter,
-        // we don't match.
-        let getters_fail = self.getters.iter().any(|selector| {
-            !service.has_getters(|channel| {
-                selector.matches(&self.tags, channel)
-            })
-        });
-        if getters_fail {
-            return false;
-        }
-        // If any of the setter selectors doesn't find a setter,
-        // we don't match.
-        let setters_fail = self.setters.iter().any(|selector| {
-            !service.has_setters(|channel| {
-                selector.matches(&self.tags, channel)
-            })
-        });
-        if setters_fail {
-            return false;
-        }
-        true
-    }
 }
 
-impl SelectedBy<ServiceSelector> for Service {
-    fn matches(&self, selector: &ServiceSelector) -> bool {
-        selector.matches(self)
-    }
-}
 
 
 /// A selector for one or more getter channels.
@@ -322,164 +213,127 @@ impl SelectedBy<ServiceSelector> for Service {
 /// }
 /// ```
 #[derive(Clone, Debug, Deserialize, Default)]
-pub struct GetterSelector {
+pub struct BaseFeatureSelector<T> where T: Clone + Debug + Deserialize + Default {
     /// If `Exactly(id)`, return only the channel with the corresponding id.
-    pub id: Exactly<Id<Getter>>,
+    pub id: Exactly<Id<FeatureId>>,
 
-    /// If `Eactly(id)`, return only channels that are children of
-    /// service `id`.
-    pub parent: Exactly<Id<ServiceId>>,
+    /// Restrict results to features that appear in `services`.
+    pub services: T,
 
     ///  Restrict results to channels that have all the tags in `tags`.
     pub tags: HashSet<Id<TagId>>,
 
-    ///  Restrict results to channels offered by a service that has all the tags in `tags`.
-    pub service_tags: HashSet<Id<TagId>>,
-
     /// If `Exatly(k)`, restrict results to channels that produce values
     /// of kind `k`.
-    pub kind: Exactly<ChannelKind>,
+    pub implements: Exactly<Id<ImplementId>>,
 
-    /// Make sure that we can't instantiate from another crate.
     private: (),
 }
 
-impl Parser<GetterSelector> for GetterSelector {
+pub type SimpleFeatureSelector = BaseFeatureSelector<()>;
+pub type FeatureSelector = BaseFeatureSelector<Vec<ServiceSelector>>;
+
+impl Parser<FeatureSelector> for FeatureSelector {
     fn description() -> String {
-        "GetterSelector".to_owned()
+        "FeatureSelector".to_owned()
     }
-    fn parse(path: Path, source: &mut JSON) -> Result<Self, ParseError> {
-        let mut is_empty = true;
-        let id = try!(match path.push("id", |path| Exactly::take_opt(path, source, "id")) {
-            None => Ok(Exactly::Always),
+    fn parse(path: Path, source: &JSON, support: &DeserializeSupport) -> Result<Self, ParseError> {
+        let services = try!(match path.push("services", |path| ServiceSelector::take_vec_opt(path, source, "services", support)) {
+            None => Ok(vec![]),
             Some(result) => {
-                is_empty = false;
                 result
             }
         });
-        let service_id = try!(match path.push("service", |path| Exactly::take_opt(path, source, "service")) {
-            None => Ok(Exactly::Always),
-            Some(result) => {
-                is_empty = false;
-                result
-            }
-        });
-        let tags : HashSet<_> = match path.push("tags", |path| Id::take_vec_opt(path, source, "tags")) {
-            None => HashSet::new(),
-            Some(Ok(mut vec)) => {
-                is_empty = false;
-                vec.drain(..).collect()
-            }
-            Some(Err(err)) => return Err(err),
-        };
-        let service_tags : HashSet<_> = match path.push("service_tags", |path| Id::take_vec_opt(path, source, "service_tags")) {
-            None => HashSet::new(),
-            Some(Ok(mut vec)) => {
-                is_empty = false;
-                vec.drain(..).collect()
-            }
-            Some(Err(err)) => return Err(err),
-        };
-        let kind = try!(match path.push("kind", |path| Exactly::take_opt(path, source, "kind")) {
-            None => Ok(Exactly::Always),
-            Some(result) => {
-                is_empty = false;
-                result
-            }
-        });
-        if is_empty {
-            Err(ParseError::empty_object(&path))
-        } else {
-            Ok(GetterSelector {
-                id: id,
-                parent: service_id,
-                tags: tags,
-                service_tags: service_tags,
-                kind: kind,
-                private: ()
-            })
-        }
+        let base = try!(SimpleFeatureSelector::parse(path, source, support));
+        Ok(BaseFeatureSelector {
+            services: services,
+            id: base.id,
+            tags: base.tags,
+            implements: base.implements,
+            private: ()
+        })
     }
 }
-impl GetterSelector {
+
+impl Parser<SimpleFeatureSelector> for SimpleFeatureSelector {
+    fn description() -> String {
+        "SimpleFeatureSelector".to_owned()
+    }
+    fn parse(path: Path, source: &JSON, support: &DeserializeSupport) -> Result<Self, ParseError> {
+        let id = try!(match path.push("id", |path| Exactly::take_opt(path, source, "id", support)) {
+            None => Ok(Exactly::Always),
+            Some(result) => {
+                result
+            }
+        });
+        let tags : HashSet<_> = match path.push("tags", |path| Id::take_vec_opt(path, source, "tags", support)) {
+            None => HashSet::new(),
+            Some(Ok(mut vec)) => {
+                vec.drain(..).collect()
+            }
+            Some(Err(err)) => return Err(err),
+        };
+        let implements = try!(match path.push("implements", |path| Exactly::take_opt(path, source, "implements", support)) {
+            None => Ok(Exactly::Always),
+            Some(result) => {
+                result
+            }
+        });
+        Ok(BaseFeatureSelector {
+            id: id,
+            services: (),
+            tags: tags,
+            implements: implements,
+            private: ()
+        })
+    }
+}
+
+impl<T> BaseFeatureSelector<T> where T: Clone + Debug + Deserialize + Default {
     /// Create a new selector that accepts all getter channels.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Restrict to a channel with a specific id.
-    pub fn with_id(self, id: Id<Getter>) -> Self {
-        GetterSelector {
+    pub fn with_id(self, id: Id<FeatureId>) -> Self {
+        BaseFeatureSelector {
             id: self.id.and(Exactly::Exactly(id)),
             .. self
         }
     }
 
-    /// Restrict to a channel with a specific parent.
-    pub fn with_parent(self, id: Id<ServiceId>) -> Self {
-        GetterSelector {
-            parent: self.parent.and(Exactly::Exactly(id)),
-            .. self
-        }
-    }
-
     /// Restrict to a channel with a specific kind.
-    pub fn with_kind(self, kind: ChannelKind) -> Self {
-        GetterSelector {
-            kind: self.kind.and(Exactly::Exactly(kind)),
+    pub fn with_implements(self, id: Id<ImplementId>) -> Self {
+        BaseFeatureSelector {
+            implements: self.implements.and(Exactly::Exactly(id)),
             .. self
         }
     }
 
     ///  Restrict to channels that have all the tags in `tags`.
-    pub fn with_tags(self, tags: Vec<Id<TagId>>) -> Self {
-        GetterSelector {
+    pub fn with_tags(self, tags: &[Id<TagId>]) -> Self {
+        BaseFeatureSelector {
             tags: merge(self.tags, tags),
             .. self
         }
     }
+}
 
-    ///  Restrict to channels offered by a service that has all the tags in `tags`.
-    pub fn with_service_tags(self, tags: Vec<Id<TagId>>) -> Self {
-        GetterSelector {
-            service_tags: merge(self.service_tags, tags),
+impl BaseFeatureSelector<Vec<ServiceSelector>> {
+    /// Restrict to a channel with a specific parent.
+    pub fn with_service(self, services: &[ServiceSelector]) -> Self {
+        let mut self_services = self.services;
+        BaseFeatureSelector {
+            services: {self_services.extend_from_slice(services); self_services},
             .. self
         }
     }
-
-    /// Restrict to channels that are accepted by two selector.
-    pub fn and(self, other: Self) -> Self {
-        GetterSelector {
-            id: self.id.and(other.id),
-            parent: self.parent.and(other.parent),
-            tags: self.tags.union(&other.tags).cloned().collect(),
-            service_tags: self.service_tags.union(&other.service_tags).cloned().collect(),
-            kind: self.kind.and(other.kind),
-            private: (),
-        }
-    }
-
-    /// Determine if a channel is matched by this selector.
-    pub fn matches(&self, service_tags: &HashSet<Id<TagId>>, channel: &Channel<Getter>) -> bool {
-        if !self.id.matches(&channel.id) {
-            return false;
-        }
-        if !self.parent.matches(&channel.service) {
-            return false;
-        }
-        if !self.kind.matches(&channel.mechanism.kind) {
-            return false;
-        }
-        if !has_selected_tags(&self.tags, &channel.tags) {
-            return false;
-        }
-        if !has_selected_tags(&self.service_tags, service_tags) {
-            return false;
-        }
-        true
-    }
 }
 
+
+
+/*
 /// A selector for one or more setter channels.
 ///
 /// # JSON
@@ -491,7 +345,7 @@ impl GetterSelector {
 /// - (optional) array of string `tags`:  accept only channels with all the tags in the array;
 /// - (optional) array of string `service_tags`:  accept only channels of a service with all the
 ///        tags in the array;
-/// - (optional) string|object `kind` (see `ChannelKind`): accept only channels of a given kind.
+/// - (optional) string|object `kind` (see ChannelKind): accept only channels of a given kind.
 ///
 /// While each field is optional, at least one field must be provided.
 ///
@@ -543,7 +397,7 @@ impl Parser<SetterSelector> for SetterSelector {
     fn description() -> String {
         "SetterSelector".to_owned()
     }
-    fn parse(path: Path, source: &mut JSON) -> Result<Self, ParseError> {
+    fn parse(path: Path, source: &JSON) -> Result<Self, ParseError> {
         let mut is_empty = true;
         let id = try!(match path.push("id", |path| Exactly::take_opt(path, source, "id")) {
             None => Ok(Exactly::Always),
@@ -734,12 +588,4 @@ impl Period {
     }
 }
 
-
-fn has_selected_tags(actual: &HashSet<Id<TagId>>, requested: &HashSet<Id<TagId>>) -> bool {
-    for tag in &*actual {
-        if !requested.contains(tag) {
-            return false;
-        }
-    }
-    true
-}
+*/

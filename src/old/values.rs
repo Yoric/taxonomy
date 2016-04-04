@@ -1715,162 +1715,6 @@ impl Deserialize for TimeStamp {
     }
 }
 
-/// A comparison between two values.
-///
-/// # JSON
-///
-/// A range is an object with one field `{key: value}`.
-///
-#[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
-pub enum Range {
-    /// Leq(x) accepts any value v such that v <= x.
-    ///
-    /// # JSON
-    ///
-    /// ```
-    /// extern crate foxbox_taxonomy;
-    /// extern crate serde_json;
-    ///
-    /// use foxbox_taxonomy::values::*;
-    /// use foxbox_taxonomy::parse::*;
-	/// use foxbox_taxonomy::serialize::*;
-    ///
-    /// # fn main() {
-    ///
-    /// let source = "{
-    ///   \"Leq\": { \"OnOff\": \"On\" }
-    /// }";
-    ///
-    /// let parsed = Range::from_str(source).unwrap();
-    /// if let Range::Leq(ref leq) = parsed {
-    ///   assert_eq!(*leq, Value::OnOff(OnOff::On));
-    /// } else {
-    ///   panic!();
-    /// }
-    ///
-    /// let as_json = parsed.to_json(&mut MultiPart::new());
-    /// let as_string = serde_json::to_string(&as_json).unwrap();
-    /// assert_eq!(as_string, "{\"Leq\":{\"OnOff\":\"On\"}}");
-    ///
-    /// # }
-    /// ```
-    Leq(Value),
-
-    /// Geq(x) accepts any value v such that v >= x.
-    Geq(Value),
-
-    /// BetweenEq {min, max} accepts any value v such that `min <= v`
-    /// and `v <= max`. If `max < min`, it never accepts anything.
-    BetweenEq { min:Value, max:Value },
-
-    /// OutOfStrict {min, max} accepts any value v such that `v < min`
-    /// or `max < v`
-    OutOfStrict { min:Value, max:Value },
-
-    /// Eq(x) accespts any value v such that v == x
-    Eq(Value),
-}
-
-impl Parser<Range> for Range {
-    fn description() -> String {
-        "Range".to_owned()
-    }
-    fn parse(path: Path, source: &mut JSON) -> Result<Self, ParseError> {
-        use self::Range::*;
-        match *source {
-            JSON::Object(ref mut obj) if obj.len() == 1 => {
-                if let Some(leq) = obj.get_mut("Leq") {
-                    return Ok(Leq(try!(path.push("Leq", |path| Value::parse(path, leq)))))
-                }
-                if let Some(geq) = obj.get_mut("Geq") {
-                    return Ok(Geq(try!(path.push("Geq", |path| Value::parse(path, geq)))))
-                }
-                if let Some(eq) = obj.get_mut("Eq") {
-                    return Ok(Eq(try!(path.push("eq", |path| Value::parse(path, eq)))))
-                }
-                if let Some(between) = obj.get_mut("BetweenEq") {
-                    let mut bounds = try!(path.push("BetweenEq", |path| Vec::<Value>::parse(path, between)));
-                    if bounds.len() == 2 {
-                        let max = bounds.pop().unwrap();
-                        let min = bounds.pop().unwrap();
-                        return Ok(BetweenEq {
-                            min: min,
-                            max: max
-                        })
-                    } else {
-                        return Err(ParseError::type_error("BetweenEq", &path, "an array of two values"))
-                    }
-                }
-                if let Some(outof) = obj.get_mut("OutOfStrict") {
-                    let mut bounds = try!(path.push("OutOfStrict", |path| Vec::<Value>::parse(path, outof)));
-                    if bounds.len() == 2 {
-                        let max = bounds.pop().unwrap();
-                        let min = bounds.pop().unwrap();
-                        return Ok(OutOfStrict {
-                            min: min,
-                            max: max
-                        })
-                    } else {
-                        return Err(ParseError::type_error("OutOfStrict", &path, "an array of two values"))
-                    }
-                }
-                Err(ParseError::type_error("Range", &path, "a field Eq, Leq, Geq, BetweenEq or OutOfStrict"))
-            }
-            _ => Err(ParseError::type_error("Range", &path, "object"))
-        }
-    }
-}
-
-impl ToJSON for Range {
-    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
-        let obj = match *self {
-            Range::Eq(ref val) => ("Eq", val.to_json(parts)),
-            Range::Geq(ref val) => ("Geq", val.to_json(parts)),
-            Range::Leq(ref val) => ("Leq", val.to_json(parts)),
-            Range::BetweenEq { ref min, ref max } => ("BetweenEq", JSON::Array(vec![min.to_json(parts), max.to_json(parts)])),
-            Range::OutOfStrict { ref min, ref max } => ("OutOfStrict", JSON::Array(vec![min.to_json(parts), max.to_json(parts)])),
-        };
-        vec![obj].to_json(parts)
-    }
-}
-
-impl Range {
-    /// Determine if a value is accepted by this range.
-    pub fn contains(&self, value: &Value) -> bool {
-        use self::Range::*;
-        match *self {
-            Leq(ref max) => value <= max,
-            Geq(ref min) => value >= min,
-            BetweenEq { ref min, ref max } => min <= value && value <= max,
-            OutOfStrict { ref min, ref max } => value < min || max < value,
-            Eq(ref val) => value == val,
-        }
-    }
-
-    /// Get the type associated to this range.
-    ///
-    /// If this range has a `min` and a `max` with conflicting types,
-    /// produce an error.
-    pub fn get_type(&self) -> Result<Type, TypeError> {
-        use self::Range::*;
-        match *self {
-            Leq(ref v) | Geq(ref v) | Eq(ref v) => Ok(v.get_type()),
-            BetweenEq {ref min, ref max} | OutOfStrict {ref min, ref max} => {
-                let min_typ = min.get_type();
-                let max_typ = max.get_type();
-                if min_typ == max_typ {
-                    Ok(min_typ)
-                } else {
-                    Err(TypeError {
-                        expected: min_typ,
-                        got: max_typ
-                    })
-                }
-            }
-        }
-    }
-}
-
 
 /// A duration, also used to represent a time of day.
 ///
@@ -1994,5 +1838,69 @@ impl Deserialize for Duration {
         }
         deserializer.deserialize_f64(DurationVisitor)
             .or_else(|_| deserializer.deserialize_i64(DurationVisitor))
+    }
+}
+
+
+impl Parser<Range> for Range {
+    fn description() -> String {
+        "Range".to_owned()
+    }
+    fn parse(path: Path, source: &mut JSON) -> Result<Self, ParseError> {
+        use self::Range::*;
+        match *source {
+            JSON::Object(ref mut obj) if obj.len() == 1 => {
+                if let Some(leq) = obj.get_mut("Leq") {
+                    return Ok(Leq(try!(path.push("Leq", |path| Value::parse(path, leq)))))
+                }
+                if let Some(geq) = obj.get_mut("Geq") {
+                    return Ok(Geq(try!(path.push("Geq", |path| Value::parse(path, geq)))))
+                }
+                if let Some(eq) = obj.get_mut("Eq") {
+                    return Ok(Eq(try!(path.push("eq", |path| Value::parse(path, eq)))))
+                }
+                if let Some(between) = obj.get_mut("BetweenEq") {
+                    let mut bounds = try!(path.push("BetweenEq", |path| Vec::<Value>::parse(path, between)));
+                    if bounds.len() == 2 {
+                        let max = bounds.pop().unwrap();
+                        let min = bounds.pop().unwrap();
+                        return Ok(BetweenEq {
+                            min: min,
+                            max: max
+                        })
+                    } else {
+                        return Err(ParseError::type_error("BetweenEq", &path, "an array of two values"))
+                    }
+                }
+                if let Some(outof) = obj.get_mut("OutOfStrict") {
+                    let mut bounds = try!(path.push("OutOfStrict", |path| Vec::<Value>::parse(path, outof)));
+                    if bounds.len() == 2 {
+                        let max = bounds.pop().unwrap();
+                        let min = bounds.pop().unwrap();
+                        return Ok(OutOfStrict {
+                            min: min,
+                            max: max
+                        })
+                    } else {
+                        return Err(ParseError::type_error("OutOfStrict", &path, "an array of two values"))
+                    }
+                }
+                Err(ParseError::type_error("Range", &path, "a field Eq, Leq, Geq, BetweenEq or OutOfStrict"))
+            }
+            _ => Err(ParseError::type_error("Range", &path, "object"))
+        }
+    }
+}
+
+impl ToJSON for Range {
+    fn to_json(&self, parts: &mut BinaryParts) -> JSON {
+        let obj = match *self {
+            Range::Eq(ref val) => ("Eq", val.to_json(parts)),
+            Range::Geq(ref val) => ("Geq", val.to_json(parts)),
+            Range::Leq(ref val) => ("Leq", val.to_json(parts)),
+            Range::BetweenEq { ref min, ref max } => ("BetweenEq", JSON::Array(vec![min.to_json(parts), max.to_json(parts)])),
+            Range::OutOfStrict { ref min, ref max } => ("OutOfStrict", JSON::Array(vec![min.to_json(parts), max.to_json(parts)])),
+        };
+        vec![obj].to_json(parts)
     }
 }

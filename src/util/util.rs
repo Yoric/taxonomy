@@ -26,6 +26,18 @@ pub enum Exactly<T> {
     Never,
 }
 
+impl<T> PartialEq for Exactly<T> where T: PartialEq {
+    fn eq(&self, other: &Self) -> bool {
+        use self::Exactly::*;
+        match (self, other) {
+            (&Always, &Always) => true,
+            (&Never, &Never) => true,
+            (&Exactly(ref a), &Exactly(ref b)) => a == b,
+            _ => false
+        }
+    }
+}
+
 impl<T> Parser<Exactly<T>> for Exactly<T> where T: Parser<T> {
     fn description() -> String {
         T::description()
@@ -354,30 +366,21 @@ impl<T> Visitor for TrivialEnumVisitor<T> where T: Deserialize {
     }
 }
 
-/// A marker for Id.
-/// Only useful for writing `Id<ServiceId>`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Eq)]
-pub struct ServiceId;
-
-/// A marker for Id.
-/// Only useful for writing `Id<AdapterId>`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Eq)]
-pub struct AdapterId;
-
-// A marker for Id.
-/// Only useful for writing `Id<TagId>`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Eq)]
-pub struct TagId;
-
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Eq)]
-pub struct KindId;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Eq)]
-pub struct VendorId;
 
 #[derive(Clone, Debug)]
 pub struct MimeTypeId;
 
+
 /// Helper function, to check that a type implements Sync.
 pub fn is_sync<T: Sync>() {}
+
+pub fn ptr_eq<T>(a: *const T, b: *const T) -> bool { a == b }
+
+
+#[derive(Clone)]
+pub enum Expects<T: Clone + ?Sized> {
+    Requires(T),
+    Optional(T),
+    Nothing
+}
+
