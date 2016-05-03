@@ -132,13 +132,20 @@ impl FeatureData {
     }
 
     fn matches(&self, service: &ServiceData, selector: &FeatureSelector) -> bool {
-        let service_fails = !selector.services.is_empty() && selector.services.iter().all(|service_selector| {
-            !service.matches(service_selector)
-        });
-        if service_fails {
-            return false;
+        match selector.services {
+            Exactly::Never => false,
+            Exactly::Always => self.matches_without_service(selector),
+            Exactly::Exactly(ref services) => {
+                let service_fails = services.iter().all(|service_selector| {
+                    !service.matches(service_selector)
+                });
+                if service_fails {
+                    false
+                } else {
+                    self.matches_without_service(selector)
+                }
+            }
         }
-        self.matches_without_service(selector)
     }
 
     // Note: This assumes that we have already matched the service.

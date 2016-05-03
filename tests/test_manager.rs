@@ -387,10 +387,10 @@ fn test_add_remove_services() {
         assert_eq!(api.get_features(vec![FeatureSelector::new()]).len(), 1);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_1.clone())]).len(), 1);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_2.clone())]).len(), 0);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_1.clone())
         ])]).len(), 1);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_3.clone())
         ])]).len(), 0);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_implements(Id::new("light-on"))]).len(), 1);
@@ -406,10 +406,10 @@ fn test_add_remove_services() {
         assert_eq!(api.get_features(vec![FeatureSelector::new()]).len(), 1);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_1.clone())]).len(), 1);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_2.clone())]).len(), 0);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_1.clone())
         ])]).len(), 1);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_3.clone())
         ])]).len(), 0);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_implements(Id::new("light-on"))]).len(), 1);
@@ -422,10 +422,10 @@ fn test_add_remove_services() {
         assert_eq!(api.get_features(vec![FeatureSelector::new()]).len(), 0);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_1.clone())]).len(), 0);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_2.clone())]).len(), 0);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_1.clone())
         ])]).len(), 0);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_3.clone())
         ])]).len(), 0);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_implements(Id::new("light-on"))]).len(), 0);
@@ -445,13 +445,13 @@ fn test_add_remove_services() {
         assert_eq!(api.get_features(vec![FeatureSelector::new()]).len(), 2);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_1.clone())]).len(), 1);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_2.clone())]).len(), 1);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_1.clone())
         ])]).len(), 1);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_2.clone())
         ])]).len(), 1);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_3.clone())
         ])]).len(), 0);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_implements(Id::new("light-on"))]).len(), 1);
@@ -467,7 +467,7 @@ fn test_add_remove_services() {
             FeatureSelector::new().with_implements(Id::new("light-on")),
             FeatureSelector::new().with_implements(Id::new("x-light-on")),
             FeatureSelector::new().with_id(feature_id_1.clone()),
-            FeatureSelector::new().with_service(&vec![
+            FeatureSelector::new().with_service(vec![
                 ServiceSelector::new().with_id(service_id_1.clone())
             ])
         ]).len(), 1);
@@ -483,17 +483,17 @@ fn test_add_remove_services() {
         println!("* Removing a service with features also removes its features.");
         assert_eq!(api.get_features(vec![FeatureSelector::new()]).len(), 1);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_1.clone())]).len(), 0);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_1.clone())
         ])]).len(), 0);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_implements(Id::new("light-on"))]).len(), 0);
 
         println!("* Removing a service with features also removes other features.");
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_id(feature_id_2.clone())]).len(), 1);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_2.clone())
         ])]).len(), 1);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_id(service_id_3.clone())
         ])]).len(), 0);
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_implements(Id::new("light-color"))]).len(), 1);
@@ -653,10 +653,10 @@ fn test_add_remove_tags() {
         assert_eq!(api.get_features(vec![FeatureSelector::new().with_tags(&vec![tag_4_feature.clone()])]).len(), 1);
 
         println!("* We can select a feature using service tags.");
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_tags(&vec![tag_3_service.clone()])
         ])]).len(), 1);
-        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(&vec![
+        assert_eq!(api.get_features(vec![FeatureSelector::new().with_service(vec![
             ServiceSelector::new().with_tags(&vec![tag_4_feature.clone()])
         ])]).len(), 0);
 
@@ -1360,7 +1360,7 @@ fn test_watch() {
         guards.push(api.register_watch(vec![Targetted::new(
             vec![
                 FeatureSelector::new()
-                    .with_service(&vec![
+                    .with_service(vec![
                         ServiceSelector::new()
                             .with_tags(&vec![
                                 tag_2_service.clone()

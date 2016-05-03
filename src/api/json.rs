@@ -240,23 +240,36 @@ impl API {
     /// - tags: array - an array of string
     ///
     /// ```
-    /// # extern crate serde;
-    /// # extern crate serde_json;
-    /// # extern crate foxbox_taxonomy;
-    /// # use foxbox_taxonomy::services::*;
-    /// # use foxbox_taxonomy::selector::*;
+    /// extern crate foxbox_taxonomy;
+    /// extern crate serde_json;
+    ///
+    /// use foxbox_taxonomy::api::json::*;
+    /// use foxbox_taxonomy::io::parse::*;
+    /// use foxbox_taxonomy::io::serialize::*;
+    /// use foxbox_taxonomy::adapters::manager::AdapterManager;
+    ///
+    /// use std::sync::Arc;
     ///
     /// # fn main() {
-    ///  # let source =
-    /// r#"{
-    ///   "select": [{"id": "id 1"}, {"id": "id 2"}],
-    ///   "tags": ["tag 1", "tag 2"]
+    /// let manager = AdapterManager::new(None);
+    /// let api = API::new(&manager);
+    ///
+    /// let source = r#"{
+    ///   "select": [{
+    ///     "id": "id_1"
+    ///   }, {
+    ///     "id": "id_2"
+    ///   }],
+    ///   "tags": ["entrance", "door"]
     /// }"#;
     ///
-    /// # let mut json: JSON = serde_json::from_str(&source).unwrap();
-    /// # Vec::<ServiceSelector>::take(Path::new(), &mut json, "services").unwrap();
-    /// # Vec::<Id<String>>::take(Path::new(), &mut json, "tags").unwrap();
+    /// let request = Request {
+    ///   json: serde_json::from_str(&source).unwrap(),
+    ///   deserialize: Arc::new(EmptyDeserializeSupportForTests),
+    ///   serialize: Arc::new(EmptySerializeSupportForTests),
+    /// };
     ///
+    /// api.add_service_tags(request).unwrap();
     /// # }
     /// ```
     ///
@@ -301,23 +314,36 @@ impl API {
     /// - tags: array - an array of string
     ///
     /// ```
-    /// # extern crate serde;
-    /// # extern crate serde_json;
-    /// # extern crate foxbox_taxonomy;
-    /// # use foxbox_taxonomy::services::*;
-    /// # use foxbox_taxonomy::selector::*;
+    /// extern crate foxbox_taxonomy;
+    /// extern crate serde_json;
+    ///
+    /// use foxbox_taxonomy::api::json::*;
+    /// use foxbox_taxonomy::io::parse::*;
+    /// use foxbox_taxonomy::io::serialize::*;
+    /// use foxbox_taxonomy::adapters::manager::AdapterManager;
+    ///
+    /// use std::sync::Arc;
     ///
     /// # fn main() {
+    /// let manager = AdapterManager::new(None);
+    /// let api = API::new(&manager);
     ///
-    ///  # let source =
-    /// r#"{
-    ///   "services": [{"id": "id 1"}, {"id": "id 2"}],
-    ///   "tags": ["tag 1", "tag 2"]
+    /// let source = r#"{
+    ///   "select": [{
+    ///     "id": "id_1"
+    ///   }, {
+    ///     "id": "id_2"
+    ///   }],
+    ///   "tags": ["entrance", "door"]
     /// }"#;
     ///
-    /// # let mut json: JSON = serde_json::from_str(&source).unwrap();
-    /// # Vec::<ServiceSelector>::take(Path::new(), &mut json, "services").unwrap();
-    /// # Vec::<Id<String>>::take(Path::new(), &mut json, "tags").unwrap();
+    /// let request = Request {
+    ///   json: serde_json::from_str(&source).unwrap(),
+    ///   deserialize: Arc::new(EmptyDeserializeSupportForTests),
+    ///   serialize: Arc::new(EmptySerializeSupportForTests),
+    /// };
+    ///
+    /// api.add_service_tags(request).unwrap();
     /// # }
     /// ```
     ///
@@ -352,39 +378,33 @@ impl API {
     /// that support setter channel `OpenClosed`
     ///
     /// ```
-    /// # use foxbox_taxonomy::selector::*;
+    /// extern crate foxbox_taxonomy;
+    /// extern crate serde_json;
+    ///
+    /// use foxbox_taxonomy::api::json::*;
+    /// use foxbox_taxonomy::io::parse::*;
+    /// use foxbox_taxonomy::io::serialize::*;
+    /// use foxbox_taxonomy::adapters::manager::AdapterManager;
+    ///
+    /// use std::sync::Arc;
+    ///
+    /// # fn main() {
+    /// let manager = AdapterManager::new(None);
+    /// let api = API::new(&manager);
     ///
     /// let source = r#"[{
     ///   "tags": ["entrance", "door"],
-    ///   "kind": "OpenClosed"
+    ///   "implements": "door/is-open"
     /// }]"#;
     ///
-    /// # Vec::<GetterSelector>::from_str(&source).unwrap();
-    /// ```
+    /// let request = Request {
+    ///   json: serde_json::from_str(&source).unwrap(),
+    ///   deserialize: Arc::new(EmptyDeserializeSupportForTests),
+    ///   serialize: Arc::new(EmptySerializeSupportForTests),
+    /// };
     ///
-    ///
-    /// ## Errors
-    ///
-    /// In case of syntax error, Error 400, accompanied with a
-    /// somewhat human-readable JSON string detailing the error.
-    ///
-    /// ## Success
-    ///
-    /// A JSON representing an array of `Service`. See the implementation
-    /// of `Service` for details.
-    ///
-    /// ### Example
-    ///
-    /// ```
-    /// # let source =
-    /// r#"[{
-    ///   "tags": ["entrance", "door", "somevendor"],
-    ///   "id: "some-getter-id",
-    ///   "service": "some-service-id",
-    ///   "updated": "2014-11-28T12:00:09+00:00",
-    ///   "mechanism": "getter",
-    ///   "kind": "OnOff"
-    /// }]"#;
+    /// api.get_features(request).unwrap();
+    /// # }
     /// ```
     pub fn get_features(&self, input: Request) -> Result<JSON, JSON> {
         let selectors = try_json!(input,
@@ -460,28 +480,6 @@ impl API {
     ///
     /// Note that this call is _not live_. In other words, if channels
     /// are added after the call, they will not be affected.
-    ///
-    /// # REST API
-    ///
-    /// `DELETE /api/v1/channels/tag`
-    ///
-    /// ## Requests
-    ///
-    /// Any JSON that can be deserialized to
-    ///
-    /// ```ignore
-    /// {
-    ///   set: Vec<GetterSelector>,
-    ///   tags: Vec<Id<TagId>>,
-    /// }
-    /// ```
-    /// or
-    /// ```ignore
-    /// {
-    ///   set: Vec<SetterSelector>,
-    ///   tags: Vec<Id<TagId>>,
-    /// }
-    /// ```
     ///
     /// ## Errors
     ///

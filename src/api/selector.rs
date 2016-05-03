@@ -25,12 +25,13 @@ fn merge<T>(mut a: HashSet<T>, b: &[T]) -> HashSet<T> where T: Hash + Eq + Clone
 /// # Example
 ///
 /// ```
-/// use foxbox_taxonomy::selector::*;
-/// use foxbox_taxonomy::services::*;
+/// use foxbox_taxonomy::api::selector::*;
+/// use foxbox_taxonomy::misc::util::*;
+/// use foxbox_taxonomy::io::parse::*;
 ///
 /// let selector = ServiceSelector::new()
-///   .with_tags(vec![Id::<TagId>::new("entrance")])
-///   .with_getters(vec![GetterSelector::new() /* can be more restrictive */]);
+///   .with_tags(&[Id::new("entrance")])
+///   .with_features(&[SimpleFeatureSelector::new() /* can be more restrictive */]);
 /// ```
 ///
 /// # JSON
@@ -47,7 +48,8 @@ fn merge<T>(mut a: HashSet<T>, b: &[T]) -> HashSet<T> where T: Hash + Eq + Clone
 /// While each field is optional, at least one field must be provided.
 ///
 /// ```
-/// use foxbox_taxonomy::selector::*;
+/// use foxbox_taxonomy::api::selector::*;
+/// use foxbox_taxonomy::io::parse::*;
 ///
 /// // A selector with all fields defined.
 /// let json_selector = "{
@@ -61,14 +63,7 @@ fn merge<T>(mut a: HashSet<T>, b: &[T]) -> HashSet<T> where T: Hash + Eq + Clone
 ///   }]
 /// }";
 ///
-/// ServiceSelector::from_str(json_selector).unwrap();
-///
-/// // The following will be rejected because no field is provided:
-/// let json_empty = "{}";
-/// match ServiceSelector::from_str(json_empty) {
-///   Err(ParseError::EmptyObject {..}) => { /* as expected */ },
-///   other => panic!("Unexpected result {:?}", other)
-/// }
+/// ServiceSelector::from_str(json_selector, &EmptyDeserializeSupportForTests).unwrap();
 /// ```
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct ServiceSelector {
@@ -164,18 +159,18 @@ impl ServiceSelector {
 
 
 
-/// A selector for one or more getter channels.
+/// A selector for one or more features channels.
 ///
 ///
 /// # Example
 ///
 /// ```
-/// use foxbox_taxonomy::selector::*;
-/// use foxbox_taxonomy::services::*;
+/// use foxbox_taxonomy::api::selector::*;
+/// use foxbox_taxonomy::misc::util::Id;
 ///
-/// let selector = GetterSelector::new()
-///   .with_parent(Id::new("foxbox"))
-///   .with_kind(ChannelKind::CurrentTimeOfDay);
+/// let selector = FeatureSelector::new()
+///   .with_tags(&[Id::new("tag 1"), Id::new("tag 2")])
+///   .with_implements(Id::new("light/is-on"));
 /// ```
 ///
 /// # JSON
@@ -192,25 +187,15 @@ impl ServiceSelector {
 /// While each field is optional, at least one field must be provided.
 ///
 /// ```
-/// use foxbox_taxonomy::selector::*;
+/// use foxbox_taxonomy::api::selector::*;
+/// use foxbox_taxonomy::io::parse::*;
 ///
-/// // A selector with all fields defined.
-/// let json_selector = "{                         \
-///   \"id\": \"setter 1\",                        \
-///   \"service\": \"service 1\",                  \
-///   \"tags\": [\"tag 1\", \"tag 2\"],            \
-///   \"service_tags\": [\"tag 3\", \"tag 4\"],    \
-///   \"kind\": \"Ready\"                          \
-/// }";
+/// let source = r#"{
+///   "tags": ["tag 1", "tag 2"],
+///   "implements": "light/is-on"
+/// }"#;
 ///
-/// FeatureSelector::from_str(json_selector).unwrap();
-///
-/// // The following will be rejected because no field is provided:
-/// let json_empty = "{}";
-/// match GetterSelector::from_str(json_empty) {
-///   Err(ParseError::EmptyObject {..}) => { /* as expected */ },
-///   other => panic!("Unexpected result {:?}", other)
-/// }
+/// FeatureSelector::from_str(source, &EmptyDeserializeSupportForTests).unwrap();
 /// ```
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct BaseFeatureSelector<T> where T: Clone + Debug + Deserialize + Default {
@@ -218,7 +203,7 @@ pub struct BaseFeatureSelector<T> where T: Clone + Debug + Deserialize + Default
     pub id: Exactly<Id<FeatureId>>,
 
     /// Restrict results to features that appear in `services`.
-    pub services: T,
+    pub services: Exactly<T>,
 
     ///  Restrict results to channels that have all the tags in `tags`.
     pub tags: HashSet<Id<TagId>>,
@@ -239,10 +224,8 @@ impl Parser<FeatureSelector> for FeatureSelector {
     }
     fn parse(path: Path, source: &JSON, support: &DeserializeSupport) -> Result<Self, ParseError> {
         let services = try!(match path.push("services", |path| ServiceSelector::take_vec_opt(path, source, "services", support)) {
-            None => Ok(vec![]),
-            Some(result) => {
-                result
-            }
+            None => Ok(Exactly::Always),
+            Some(result) => Ok(Exactly::Exactly(try!(result)))
         });
         let base = try!(SimpleFeatureSelector::parse(path, source, support));
         Ok(BaseFeatureSelector {
@@ -281,7 +264,7 @@ impl Parser<SimpleFeatureSelector> for SimpleFeatureSelector {
         });
         Ok(BaseFeatureSelector {
             id: id,
-            services: (),
+            services: Exactly::Always,
             tags: tags,
             implements: implements,
             private: ()
@@ -322,270 +305,11 @@ impl<T> BaseFeatureSelector<T> where T: Clone + Debug + Deserialize + Default {
 
 impl BaseFeatureSelector<Vec<ServiceSelector>> {
     /// Restrict to a channel with a specific parent.
-    pub fn with_service(self, services: &[ServiceSelector]) -> Self {
-        let mut self_services = self.services;
+    pub fn with_service(self, services: Vec<ServiceSelector>) -> Self {
         BaseFeatureSelector {
-            services: {self_services.extend_from_slice(services); self_services},
+            services: self.services.and(Exactly::Exactly(services)),
             .. self
         }
     }
 }
 
-
-
-/*
-/// A selector for one or more setter channels.
-///
-/// # JSON
-///
-/// A selector is an object with the following fields:
-///
-/// - (optional) string `id`: accept only a channel with a given id;
-/// - (optional) string `service`: accept only channels of a service with a given id;
-/// - (optional) array of string `tags`:  accept only channels with all the tags in the array;
-/// - (optional) array of string `service_tags`:  accept only channels of a service with all the
-///        tags in the array;
-/// - (optional) string|object `kind` (see ChannelKind): accept only channels of a given kind.
-///
-/// While each field is optional, at least one field must be provided.
-///
-/// ```
-/// use foxbox_taxonomy::selector::*;
-///
-/// // A selector with all fields defined.
-/// let json_selector = "{                         \
-///   \"id\": \"setter 1\",                        \
-///   \"service\": \"service 1\",                  \
-///   \"tags\": [\"tag 1\", \"tag 2\"],            \
-///   \"service_tags\": [\"tag 3\", \"tag 4\"],    \
-///   \"kind\": \"Ready\"                          \
-/// }";
-///
-/// SetterSelector::from_str(json_selector).unwrap();
-///
-/// // The following will be rejected because no field is provided:
-/// let json_empty = "{}";
-/// match SetterSelector::from_str(json_empty) {
-///   Err(ParseError::EmptyObject {..}) => { /* as expected */ },
-///   other => panic!("Unexpected result {:?}", other)
-/// }
-/// ```
-#[derive(Clone, Debug, Deserialize, Default)]
-pub struct SetterSelector {
-    /// If `Exactly(id)`, return only the channel with the corresponding id.
-    pub id: Exactly<Id<Setter>>,
-
-    /// If `Exactly(id)`, return only channels that are immediate children
-    /// of service `id`.
-    pub parent: Exactly<Id<ServiceId>>,
-
-    ///  Restrict results to channels that have all the tags in `tags`.
-    pub tags: HashSet<Id<TagId>>,
-
-    ///  Restrict results to channels offered by a service that has all the tags in `tags`.
-    pub service_tags: HashSet<Id<TagId>>,
-
-    /// If `Exactly(k)`, restrict results to channels that accept values
-    /// of kind `k`.
-    pub kind: Exactly<ChannelKind>,
-
-    /// Make sure that we can't instantiate from another crate.
-    private: (),
-}
-
-impl Parser<SetterSelector> for SetterSelector {
-    fn description() -> String {
-        "SetterSelector".to_owned()
-    }
-    fn parse(path: Path, source: &JSON) -> Result<Self, ParseError> {
-        let mut is_empty = true;
-        let id = try!(match path.push("id", |path| Exactly::take_opt(path, source, "id")) {
-            None => Ok(Exactly::Always),
-            Some(result) => {
-                is_empty = false;
-                result
-            }
-        });
-        let service_id = try!(match path.push("service", |path| Exactly::take_opt(path, source, "service")) {
-            None => Ok(Exactly::Always),
-            Some(result) => {
-                is_empty = false;
-                result
-            }
-        });
-        let tags : HashSet<_> = match path.push("tags", |path| Id::take_vec_opt(path, source, "tags")) {
-            None => HashSet::new(),
-            Some(Ok(mut vec)) => {
-                is_empty = false;
-                vec.drain(..).collect()
-            }
-            Some(Err(err)) => return Err(err),
-        };
-        let service_tags : HashSet<_> = match path.push("service_tags", |path| Id::take_vec_opt(path, source, "service_tags")) {
-            None => HashSet::new(),
-            Some(Ok(mut vec)) => {
-                is_empty = false;
-                vec.drain(..).collect()
-            }
-            Some(Err(err)) => return Err(err),
-        };
-        let kind = try!(match path.push("kind", |path| Exactly::take_opt(path, source, "kind")) {
-            None => Ok(Exactly::Always),
-            Some(result) => {
-                is_empty = false;
-                result
-            }
-        });
-        if is_empty {
-            Err(ParseError::empty_object(&path))
-        } else {
-            Ok(SetterSelector {
-                id: id,
-                parent: service_id,
-                tags: tags,
-                service_tags: service_tags,
-                kind: kind,
-                private: ()
-            })
-        }
-    }
-}
-
-impl SetterSelector {
-    /// Create a new selector that accepts all getter channels.
-    pub fn new() -> Self {
-        SetterSelector::default()
-    }
-
-    /// Selector to a channel with a specific id.
-    pub fn with_id(self, id: Id<Setter>) -> Self {
-        SetterSelector {
-            id: self.id.and(Exactly::Exactly(id)),
-            .. self
-        }
-    }
-
-    /// Selector to channels with a specific parent.
-    pub fn with_parent(self, id: Id<ServiceId>) -> Self {
-        SetterSelector {
-            parent: self.parent.and(Exactly::Exactly(id)),
-            .. self
-        }
-    }
-
-    /// Selector to channels with a specific kind.
-    pub fn with_kind(self, kind: ChannelKind) -> Self {
-        SetterSelector {
-            kind: self.kind.and(Exactly::Exactly(kind)),
-            .. self
-        }
-    }
-
-    ///  Restrict to channels that have all the tags in `tags`.
-    pub fn with_tags(self, tags: Vec<Id<TagId>>) -> Self {
-        SetterSelector {
-            tags: merge(self.tags, tags),
-            .. self
-        }
-    }
-
-    ///  Restrict to channels offered by a service that has all the tags in `tags`.
-    pub fn with_service_tags(self, tags: Vec<Id<TagId>>) -> Self {
-        SetterSelector {
-            service_tags: merge(self.service_tags, tags),
-            .. self
-        }
-    }
-
-    /// Restrict results to channels that are accepted by two selector.
-    pub fn and(self, other: Self) -> Self {
-        SetterSelector {
-            id: self.id.and(other.id),
-            parent: self.parent.and(other.parent),
-            tags: self.tags.union(&other.tags).cloned().collect(),
-            service_tags: self.service_tags.union(&other.service_tags).cloned().collect(),
-            kind: self.kind.and(other.kind),
-            private: (),
-        }
-    }
-
-    /// Determine if a channel is matched by this selector.
-    pub fn matches(&self, service_tags: &HashSet<Id<TagId>>, channel: &Channel<Setter>) -> bool {
-        if !self.id.matches(&channel.id) {
-            return false;
-        }
-        if !self.parent.matches(&channel.service) {
-            return false;
-        }
-        if !self.kind.matches(&channel.mechanism.kind) {
-            return false;
-        }
-        if !has_selected_tags(&self.tags, &channel.tags) {
-            return false;
-        }
-        if !has_selected_tags(&self.service_tags, service_tags) {
-            return false;
-        }
-        true
-    }
-}
-
-/// An acceptable interval of time.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Period {
-    #[serde(default)]
-    pub min: Option<Duration>,
-    #[serde(default)]
-    pub max: Option<Duration>,
-}
-impl Period {
-    pub fn and(self, other: Self) -> Self {
-        let min = match (self.min, other.min) {
-            (None, x) |
-            (x, None) => x,
-            (Some(min1), Some(min2)) => Some(cmp::max(min1, min2))
-        };
-        let max = match (self.max, other.max) {
-            (None, x) |
-            (x, None) => x,
-            (Some(max1), Some(max2)) => Some(cmp::min(max1, max2))
-        };
-        Period {
-            min: min,
-            max: max
-        }
-    }
-
-    pub fn and_option(a: Option<Self>, b: Option<Self>) -> Option<Self> {
-        match (a, b) {
-            (None, x) |
-            (x, None) => x,
-            (Some(a), Some(b)) => Some(a.and(b))
-        }
-    }
-
-    pub fn matches(&self, duration: &Duration) -> bool {
-        if let Some(ref min) = self.min {
-            if min > duration {
-                return false;
-            }
-        }
-        if let Some(ref max) = self.max {
-            if max < duration {
-                return false;
-            }
-        }
-        true
-    }
-
-    pub fn matches_option(period: &Option<Self>, duration: &Option<Duration>) -> bool {
-        match (period, duration) {
-            (&Some(ref period), &Some(ref duration))
-                if !period.matches(duration) => false,
-            (&Some(_), &None) => false,
-            _ => true,
-        }
-    }
-}
-
-*/

@@ -9,36 +9,6 @@ use io::types::*;
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub enum Range {
     /// Leq(x) accepts any value v such that v <= x.
-    ///
-    /// # JSON
-    ///
-    /// ```
-    /// extern crate foxbox_taxonomy;
-    /// extern crate serde_json;
-    ///
-    /// use foxbox_taxonomy::values::*;
-    /// use foxbox_taxonomy::parse::*;
-	/// use foxbox_taxonomy::serialize::*;
-    ///
-    /// # fn main() {
-    ///
-    /// let source = "{
-    ///   \"Leq\": { \"OnOff\": \"On\" }
-    /// }";
-    ///
-    /// let parsed = Range::from_str(source).unwrap();
-    /// if let Range::Leq(ref leq) = parsed {
-    ///   assert_eq!(*leq, Value::OnOff(OnOff::On));
-    /// } else {
-    ///   panic!();
-    /// }
-    ///
-    /// let as_json = parsed.to_json(&mut MultiPart::new());
-    /// let as_string = serde_json::to_string(&as_json).unwrap();
-    /// assert_eq!(as_string, "{\"Leq\":{\"OnOff\":\"On\"}}");
-    ///
-    /// # }
-    /// ```
     Leq(Value),
 
     /// Geq(x) accepts any value v such that v >= x.

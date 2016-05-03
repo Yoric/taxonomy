@@ -7,7 +7,7 @@ use std::fmt;
 use string_cache::Atom;
 
 use serde::ser::{ Serialize, Serializer };
-use serde::de::{ Deserialize, Deserializer, Error as DeserializationError, Type as DeserializationType };
+use serde::de::{ Deserialize, Deserializer };
 
 /// A marker for a request that a expects a specific value.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -164,14 +164,14 @@ impl<K, T> Targetted<K, T> where K: Clone, T: Clone {
 /// #[derive(Debug)]
 /// struct UniqueId;
 ///
-/// let my_id = foxbox_taxonomy::util::Id::<UniqueId>::new("Unique Identifier");
+/// let my_id = foxbox_taxonomy::misc::util::Id::<UniqueId>::new("Unique Identifier");
 ///
 /// assert_eq!(my_id.to_string(), "Unique Identifier");
 ///
 /// let my_serialized_id = serde_json::to_string(&my_id).unwrap();
 /// assert_eq!(my_serialized_id, "\"Unique Identifier\"");
 ///
-/// let my_deserialized_id: foxbox_taxonomy::util::Id<UniqueId> =
+/// let my_deserialized_id: foxbox_taxonomy::misc::util::Id<UniqueId> =
 ///     serde_json::from_str("\"Unique Identifier\"").unwrap();
 /// assert_eq!(my_deserialized_id, my_id);
 /// ```
@@ -232,96 +232,6 @@ impl<T> Deserialize for Id<T> {
             id: Atom::from(deserialized_string),
             phantom: Phantom::new(),
         })
-    }
-}
-
-
-
-/// By default, the (de)serialization of trivial enums by Serde is surprising, e.g.
-/// in JSON,  `enum Foo {A, B, C}` will produce `{"\"A\": []"}` for `A`, where `"\"A\""`
-/// would be expected.
-///
-/// Implementing serialization is very simple, but deserialization is much more annoying.
-/// This struct lets us implement simply the deserialization to a predictable and well-specified
-/// list of strings.
-///
-/// # Example
-///
-/// ```
-/// extern crate serde;
-/// use serde::de::{Deserialize, Deserializer};
-///
-/// extern crate foxbox_taxonomy;
-/// use foxbox_taxonomy::util::TrivialEnumVisitor;
-///
-/// enum Foo { A, B, C }
-///
-/// impl Deserialize for Foo {
-///   fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
-///     deserializer.visit_string(TrivialEnumVisitor::new(|source| {
-///       match source {
-///         "A" => Ok(Foo::A),
-///         "B" => Ok(Foo::B),
-///         "C" => Ok(Foo::C),
-///          _ => Err(())
-///       }
-///    }))
-///   }
-/// }
-///
-/// # fn main() {}
-/// ```
-pub struct TrivialEnumVisitor<T> where T: Deserialize {
-    parser: Box<Fn(&str) -> Result<T, ()>>
-}
-
-impl<T> TrivialEnumVisitor<T> where T: Deserialize {
-    pub fn new<F>(parser: F) -> Self
-        where F: Fn(&str) -> Result<T, ()> + 'static {
-            TrivialEnumVisitor {
-                parser: Box::new(parser)
-            }
-        }
-    fn parse<E>(&self, source: &str) -> Result<T, E>
-        where E: DeserializationError
-    {
-        (self.parser)(source)
-            .map_err(|()| E::unknown_field(&source.to_owned()))
-    }
-}
-
-use serde::de::Visitor;
-impl<T> Visitor for TrivialEnumVisitor<T> where T: Deserialize {
-    type Value = T;
-    fn visit_str<E>(&mut self, v: &str) -> Result<T, E>
-        where E: DeserializationError,
-    {
-        self.parse(v)
-    }
-
-    fn visit_string<E>(&mut self, v: String) -> Result<T, E>
-        where E: DeserializationError,
-    {
-        self.parse(&v)
-    }
-
-    fn visit_bytes<E>(&mut self, v: &[u8]) -> Result<T, E>
-        where E: DeserializationError,
-    {
-        use std::str;
-        match str::from_utf8(v) {
-            Ok(s) => self.parse(s),
-            Err(_) => Err(E::invalid_type(DeserializationType::String)),
-        }
-    }
-
-    fn visit_byte_buf<E>(&mut self, v: Vec<u8>) -> Result<T, E>
-        where E: DeserializationError,
-    {
-        match String::from_utf8(v) {
-            Ok(s) => self.parse(&s),
-            Err(_) => Err(DeserializationError::invalid_type(DeserializationType::String)),
-        }
     }
 }
 
