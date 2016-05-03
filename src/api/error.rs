@@ -1,3 +1,5 @@
+//! Error-handling.
+
 use api::services::*;
 
 use io::parse::*;

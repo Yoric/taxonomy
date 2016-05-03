@@ -66,13 +66,24 @@ pub struct Service {
 /// # Example
 ///
 /// ```
-/// let light_on = Feature {
+/// use foxbox_taxonomy::adapters::adapter::*;
+/// use foxbox_taxonomy::misc::util::*;
+/// use foxbox_taxonomy::io::serialize::*;
+/// use foxbox_taxonomy::io::types::*;
+/// use foxbox_taxonomy::library::*;
+/// use std::sync::Arc;
+///
+/// // A Featured used to turn lights on or off.
+/// let turn_light_on = Feature {
 ///   implements: vec!["light/on", "light/x-on"],
 ///
 ///   // We support sending on or off.
-///   supports_send: true,
+///   send: Some(Signature {
+///     accepts: Expects::Requires(Arc::new(IsOnFormat)),
+///     ..Signature::default()
+///   }),
 ///
-///   .. Feature::empty(&on_off, Id::new("light #1"), Id::new("lights manager #1"))
+///   .. Feature::empty(&Id::new("light #1"), &Id::new("lights manager #1"))
 /// };
 /// ```
 #[derive(Clone)]

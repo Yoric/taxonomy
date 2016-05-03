@@ -1,8 +1,6 @@
-//! The Adapter manager
+//! The Adapter Manager.
 //!
-//! This structure serves two roles:
-//! - adapters use it to (un)register themselves, as well as services and channels;
-//! - it exposes an implementation of the taxonomy API.
+//! This module offers an API to (un)register `Adapter`s, `Service`s and `Feature`s dynamically.
 
 pub use adapters::adapter::{ Adapter, PerFeature, PerFeatureResult, Service, Feature };
 use adapters::backend;

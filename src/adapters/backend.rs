@@ -1,4 +1,9 @@
-//! An API for plugging in adapters.
+//! This module contains the intelligence of the Taxonomy API.
+//!
+//! If we describe foxbox as an Operating System, this is the _Driver Manager_. It lets third-party
+//! modules add or remove `Adapter`s dynamically, turns high-level API calls that know nothing of
+//! individual `Adapter`s into low-level per-adapter calls, it monitors the topology to adapt
+//! high-level watch requests, it handles persistence of tags to disk, etc.
 
 use adapters::adapter::{ Adapter, AdapterWatchGuard, Feature, Service, Signature, WatchEvent as AdapterWatchEvent };
 use adapters::manager::{ MethodCall, GenericWatchEvent as WatchEvent };

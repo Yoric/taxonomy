@@ -203,7 +203,7 @@ impl ServiceSelector {
 ///   \"kind\": \"Ready\"                          \
 /// }";
 ///
-/// GetterSelector::from_str(json_selector).unwrap();
+/// FeatureSelector::from_str(json_selector).unwrap();
 ///
 /// // The following will be rejected because no field is provided:
 /// let json_empty = "{}";

@@ -28,8 +28,22 @@ pub fn check_fields(path: Path, json: &JSON) -> Result<(), ParseError> {
     }
 }
 
+/// A container holding data that may be necessary for deserialization.
+///
+/// For instance, if a HTTP client has sent a multipart request,
+/// the `DeserializeSupport` will contain all the parts.
 pub trait DeserializeSupport: Send + Sync {
+    /// Get a binary represented by a given index.
     fn get_binary(&self, index: usize) -> Result<&[u8], ParseError>;
+}
+
+/// A trivial implementation of `DeserializeSupport` that offers no data.
+/// Useful mostly for testing.
+pub struct EmptyDeserializeSupportForTests;
+impl DeserializeSupport for EmptyDeserializeSupportForTests {
+    fn get_binary(&self, _: usize) -> Result<&[u8], ParseError> {
+        panic!("This should never be called");
+    }
 }
 
 /// A path in the JSON tree. Used for displaying error messages.
@@ -106,6 +120,7 @@ impl Path {
 pub enum ParseError {
     JSON(JSONError),
     NoDeserializer(String),
+    NoBinary(usize),
     MissingField {
         name: String,
         at: String,
@@ -245,7 +260,7 @@ pub trait Parser<T: Sized> {
                 if let JSON::Array(ref vec) = *json {
                     let mut result = Vec::with_capacity(vec.len());
                     for (json, i) in vec.iter().zip(0..) {
-                        match path.push(&format!("{}[{}]", field_name, i),
+                        match path.push_index(i,
                             |path| Self::parse(path, json, support)
                         ) {
                             Err(error) => return Some(Err(error)),

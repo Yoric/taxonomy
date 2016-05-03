@@ -104,7 +104,17 @@ pub struct FeatureDescription {
 
 impl ToJSON for FeatureDescription {
     fn to_json(&self, parts: &SerializeSupport) -> JSON {
-        unimplemented!()
+        vec![
+            ("id", self.id.to_json(parts)),
+            ("adapter", self.adapter.to_json(parts)),
+            ("service", self.service.to_json(parts)),
+            ("implements", self.implements.to_json(parts)),
+            ("send", self.send.to_json(parts)),
+            ("watch", self.watch.to_json(parts)),
+            ("fetch", self.fetch.to_json(parts)),
+            ("delete", self.delete.to_json(parts)),
+            ("tags", self.tags.to_json(parts)),
+        ].to_json(parts)
     }
 }
 

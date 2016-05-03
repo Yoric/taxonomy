@@ -28,3 +28,5 @@ pub mod api;
 pub mod io;
 pub mod misc;
 
+/// Standardized components.
+pub mod library;

@@ -6,9 +6,21 @@ use std::hash::Hash;
 
 use serde_json::value::Value as JSON;
 
-/// A store to put binary parts.
+/// A container holding data that may be necessary for serialization.
+///
+/// For instance, when responding to a HTTP client, JSON is a very poor
+/// format for sending binary data. Rather, binary values should be stored
+/// in the `SerializeSupport`. The server will pick an appropriate format
+/// for actual transmission to the client.
 pub trait SerializeSupport: Send + Sync {
     fn add_binary(&mut self, mimetype: Id<MimeTypeId>, binary: &[u8]) -> JSON;
+}
+
+pub struct EmptySerializeSupportForTests;
+impl SerializeSupport for EmptySerializeSupportForTests {
+    fn add_binary(&mut self, _: Id<MimeTypeId>, _: &[u8]) -> JSON {
+        panic!("This should never be called");
+    }
 }
 
 /// An imnplementation of `MultiPart` that stores everything in a `HashMap` and returns

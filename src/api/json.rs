@@ -1,16 +1,9 @@
 //!
 //! The API for communicating with devices.
 //!
-//! This API is provided as Traits to be implemented:
-//!
-//! - by the low-level layers of the foxbox, including the adapters;
-//! - by test suites and tools that need to simulate connected devices.
-//!
-//! In turn, this API is used to implement:
-//!
-//! - the public-facing REST and `WebSocket` API;
-//! - the rules API (Thinkerbell).
-//!
+//! This module implements a JSON front-end for the API. This front-end is designed to implement
+//! the REST API and for interaction with dynamic languages.
+//! See also `native.rs` for a native front-end.
 //!
 
 use adapters::manager::*;
@@ -46,10 +39,11 @@ macro_rules! log_debug_assert {
     };
 }
 
-pub struct Input {
-    json: JSON,
-    deserialize: Arc<DeserializeSupport>,
-    serialize: Arc<SerializeSupport>,
+/// A struture used to (de)serialize values.
+pub struct Request {
+    pub json: JSON,
+    pub deserialize: Arc<DeserializeSupport>,
+    pub serialize: Arc<SerializeSupport>,
 }
 
 impl<K> Parser<Targetted<K, Vec<Id<TagId>>>> for Targetted<K, Vec<Id<TagId>>> where K: Parser<K> + Clone {
@@ -169,21 +163,38 @@ impl API {
     /// of `ServiceSelector` for more details.
     ///
     /// Example: Select all doors in the entrance (tags `door`, `entrance`)
-    /// that support setter channel `OpenClosed`
+    /// that implement feature `door/is-open`
     ///
     /// ```
-    /// # use foxbox_taxonomy::selector::*;
+    /// extern crate foxbox_taxonomy;
+    /// extern crate serde_json;
+    ///
+    /// use foxbox_taxonomy::api::json::*;
+    /// use foxbox_taxonomy::io::parse::*;
+    /// use foxbox_taxonomy::io::serialize::*;
+    /// use foxbox_taxonomy::adapters::manager::AdapterManager;
+    ///
+    /// use std::sync::Arc;
+    ///
+    /// # fn main() {
+    /// let manager = AdapterManager::new(None);
+    /// let api = API::new(&manager);
     ///
     /// let source = r#"[{
     ///   "tags": ["entrance", "door"],
-    ///   "getters": [
-    ///     {
-    ///       "kind": "OpenClosed"
-    ///     }
-    ///   ]
+    ///   "features": [{
+    ///     "implements": "door/is-open"
+    ///   }]
     /// }]"#;
     ///
-    /// # Vec::<ServiceSelector>::from_str(&source).unwrap();
+    /// let request = Request {
+    ///   json: serde_json::from_str(&source).unwrap(),
+    ///   deserialize: Arc::new(EmptyDeserializeSupportForTests),
+    ///   serialize: Arc::new(EmptySerializeSupportForTests),
+    /// };
+    ///
+    /// api.get_services(request).unwrap();
+    /// # }
     /// ```
     ///
     ///
@@ -196,26 +207,7 @@ impl API {
     ///
     /// A JSON representing an array of `Service`. See the implementation
     /// of `Service` for details.
-    ///
-    /// ### Example
-    ///
-    /// ```
-    /// # let source =
-    /// r#"[{
-    ///   "tags": ["entrance", "door", "somevendor"],
-    ///   "id: "some-service-id",
-    ///   "getters": [],
-    ///   "setters": [
-    ///     "tags": ["tag 1", "tag 2"],
-    ///     "id": "some-channel-id",
-    ///     "service": "some-service-id",
-    ///     "updated": "2014-11-28T12:00:09+00:00",
-    ///     "mechanism": "setter",
-    ///     "kind": "OnOff"
-    ///   ]
-    /// }]"#;
-    /// ```
-    pub fn get_services(&self, input: Input) -> Result<JSON, JSON> {
+    pub fn get_services(&self, input: Request) -> Result<JSON, JSON> {
         let selectors = try_json!(input,
             Vec::<ServiceSelector>::parse(Path::named("body"), &input.json, &*input.deserialize)
         );
@@ -276,7 +268,7 @@ impl API {
     /// ## Success
     ///
     /// A JSON string representing a number.
-    pub fn add_service_tags(&self, input: Input) -> Result<JSON, JSON> {
+    pub fn add_service_tags(&self, input: Request) -> Result<JSON, JSON> {
         let Targetted { select, payload } = try_json!(input,
             Targetted::<ServiceSelector, Vec<Id<TagId>>>::parse(Path::named("body"), &input.json, &*input.deserialize)
         );
@@ -337,7 +329,7 @@ impl API {
     /// ## Success
     ///
     /// A JSON string representing a number.
-    pub fn remove_service_tags(&self, input: Input) -> Result<JSON, JSON> {
+    pub fn remove_service_tags(&self, input: Request) -> Result<JSON, JSON> {
         let Targetted { select, payload } = try_json!(input,
             Targetted::<ServiceSelector, Vec<Id<TagId>>>::parse(Path::named("body"), &input.json, &*input.deserialize)
         );
@@ -394,7 +386,7 @@ impl API {
     ///   "kind": "OnOff"
     /// }]"#;
     /// ```
-    pub fn get_features(&self, input: Input) -> Result<JSON, JSON> {
+    pub fn get_features(&self, input: Request) -> Result<JSON, JSON> {
         let selectors = try_json!(input,
             Vec::<FeatureSelector>::parse(Path::named("body"), &input.json, &*input.deserialize)
         );
@@ -447,7 +439,7 @@ impl API {
     /// ## Success
     ///
     /// A JSON representing a number.
-    pub fn add_feature_tags(&self, input: Input) -> Result<JSON, JSON> {
+    pub fn add_feature_tags(&self, input: Request) -> Result<JSON, JSON> {
         let Targetted { select, payload } = try_json!(input,
             Targetted::<FeatureSelector, Vec<Id<TagId>>>::parse(Path::named("body"), &input.json, &*input.deserialize)
         );
@@ -499,7 +491,7 @@ impl API {
     /// ## Success
     ///
     /// A JSON representing a number.
-    pub fn remove_feature_tags(&self, input: Input) -> Result<JSON, JSON> {
+    pub fn remove_feature_tags(&self, input: Request) -> Result<JSON, JSON> {
         let Targetted { select, payload } = try_json!(input,
             Targetted::<FeatureSelector, Vec<Id<TagId>>>::parse(Path::named("body"), &input.json, &*input.deserialize)
         );
@@ -507,7 +499,7 @@ impl API {
         Ok(returned.to_json(&*input.serialize))
     }
 
-    pub fn place_method_call(&self, method: MethodCall, input: Input, user: User) ->
+    pub fn place_method_call(&self, method: MethodCall, input: Request, user: User) ->
         Result<JSON, JSON>
     {
         let request : Vec<Targetted<FeatureSelector, Option<JSON>>> = try_json!(input,
@@ -534,7 +526,7 @@ impl API {
         Ok(returned.to_json(&*input.serialize))
     }
 
-    pub fn register_watch(&self, input: Input,
+    pub fn register_watch(&self, input: Request,
         on_event: Box<ExtSender<WatchEvent>>) -> Result<WatchGuard, JSON>
     {
         let mut watch: Vec<Targetted<FeatureSelector, Exactly<JSON>>> = try_json!(input,
